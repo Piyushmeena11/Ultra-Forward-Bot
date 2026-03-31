@@ -151,7 +151,18 @@ async def settings_query(bot, query):
         "Successfully Updated",
         reply_markup=back_to_channels_btn)
 
-  elif type.startswith("caption") or type.startswith("seecaption") or type.startswith("deletecaption") or type.startswith("addcaption"):
+  # Route all caption-related callbacks to the new caption_settings.py
+  elif type == "caption": # Entry point from main_buttons
+      await handle_caption_query(bot, query, user_id, "caption")
+  elif type.startswith("header") or type.startswith("footer") or \
+       type.startswith("prefix") or type.startswith("suffix") or \
+       type.startswith("delete_before") or type.startswith("delete_after") or \
+       type.startswith("delete_words") or type.startswith("replace_words") or \
+       type.startswith("link_remove") or type.startswith("link_replace") or \
+       type.startswith("username_remove") or type.startswith("username_replace") or \
+       type.startswith("caption_length") or type.startswith("renew_caption") or \
+       type.startswith("reset_caption") or type.startswith("see_caption") or \
+       type.startswith("toggle_caption_enabled"):
       await handle_caption_query(bot, query, user_id, type)
 
   elif type=="button":
