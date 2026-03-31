@@ -55,9 +55,9 @@ class STS:
         button = parse_buttons(configs['button'] if configs['button'] else '')
         if configs['file_size'] != 0:
             size = [configs['file_size'], configs['size_limit']]
-        return bot, configs['caption'], configs['forward_tag'], {'chat_id': k.FROM, 'limit': k.limit, 'offset': k.skip, 'filters': filters, # This line is too long, breaking it
+        return bot, configs['caption'], configs['forward_tag'], {'chat_id': k.FROM, 'limit': k.limit, 'offset': k.skip, 'filters': filters,
                 'keywords': configs['keywords'], 'media_size': size, 'extensions': configs['extension'], 'skip_duplicate': duplicate}, \
-                configs['protect'], button, configs.get('pinning', False) # Added configs.get('pinning', False)
+                configs['protect'], button, configs.get('pinning', False), configs.get('caption_enabled', False) # Added configs.get('pinning', False) and caption_enabled
         
 
 def get_readable_time(seconds: int) -> str:
