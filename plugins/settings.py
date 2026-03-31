@@ -164,8 +164,8 @@ async def settings_query(bot, query):
                       callback_data="settings#seecaption")])
         buttons[-1].append(InlineKeyboardButton('🗑️ Delete Caption', 
                       callback_data="settings#deletecaption"))
-     buttons.append([InlineKeyboardButton('🔙 Back', 
-                      callback_data="settings#filters_menu")])
+     buttons.append([InlineKeyboardButton('🔙 Back', # Caption is now a top-level item
+                      callback_data="settings#main")])
      await query.message.edit_text(
         "<b><u>Custom Caption</b></u>\n\nYou Can Set A Custom Caption To Videos And Documents. Normaly Use Its Default Caption\n\n<b><u>Available Fillings :</b></u>\n\n<code>{filename}</code> : Filename\n<code>{size}</code> : File Size\n<code>{caption}</code> : Default Caption",
         reply_markup=InlineKeyboardMarkup(buttons))
@@ -175,42 +175,42 @@ async def settings_query(bot, query):
      buttons = [[InlineKeyboardButton('✏️ Edit Caption', 
                   callback_data="settings#addcaption")
                ],[
-               InlineKeyboardButton('🔙 Back',
-                 callback_data="settings#filters_menu")]]
+               InlineKeyboardButton('🔙 Back', # Back to caption menu
+                 callback_data="settings#caption")]]
      await query.message.edit_text(
         f"<b><u>Your Custom Caption</b></u>\n\n<code>{data['caption']}</code>",
         reply_markup=InlineKeyboardMarkup(buttons))
     
   elif type=="deletecaption":
      await update_configs(user_id, 'caption', None)
-     back_to_filters_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#filters_menu")]])
+     back_to_caption_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#caption")]])
      await query.message.edit_text(
         "Successfully Updated",
-        reply_markup=back_to_filters_btn)
+        reply_markup=back_to_caption_btn)
                               
   elif type=="addcaption":
-     back_to_filters_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#filters_menu")]])
+     back_to_caption_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#caption")]])
      await query.message.delete()
      try:
          text = await bot.send_message(query.message.chat.id, "Send your custom caption\n/cancel - <code>cancel this process</code>")
          caption = await bot.listen(chat_id=user_id, timeout=300)
          if caption.text=="/cancel":
             await caption.delete()
-            return await text.edit_text("Process Canceled !", reply_markup=back_to_filters_btn)
+            return await text.edit_text("Process Canceled !", reply_markup=back_to_caption_btn)
          try:
             caption.text.format(filename='', size='', caption='')
          except KeyError as e:
             await caption.delete()
             return await text.edit_text(
                f"Wrong Filling {e} Used In Your Caption. Change It",
-               reply_markup=back_to_filters_btn)
+               reply_markup=back_to_caption_btn)
          await update_configs(user_id, 'caption', caption.text)
          await caption.delete()
          await text.edit_text(
             "Successfully Updated",
-            reply_markup=back_to_filters_btn)
+            reply_markup=back_to_caption_btn)
      except asyncio.exceptions.TimeoutError:
-         await text.edit_text('Process Has Been Automatically Cancelled', reply_markup=back_to_filters_btn)
+         await text.edit_text('Process Has Been Automatically Cancelled', reply_markup=back_to_caption_btn)
 
   elif type=="button":
      buttons = []
@@ -256,10 +256,10 @@ async def settings_query(bot, query):
       
   elif type=="deletebutton":
      await update_configs(user_id, 'button', None)
-     back_to_extra_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#extra_settings_menu")]])
+     back_to_button_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#button")]])
      await query.message.edit_text(
         "Successfully Button Deleted",
-        reply_markup=back_to_extra_btn)
+        reply_markup=back_to_button_btn)
    
   elif type=="database":
      buttons = []
@@ -273,28 +273,27 @@ async def settings_query(bot, query):
         buttons[-1].append(InlineKeyboardButton('🗑️ Remove URL', 
                       callback_data="settings#deleteurl"))
      buttons.append([InlineKeyboardButton('🔙 Back', 
-                      callback_data="settings#main")])
+                      callback_data="settings#extra_settings_menu")]) # Correct
      await query.message.edit_text(
         "<b><u>Database</u></b>\n\nDatabase Is Required For Store Your Duplicate Messages Permenant. Other Wise Stored Duplicate Media May Be Disappeared When After Bot Restart.",
         reply_markup=InlineKeyboardMarkup(buttons))
 
   elif type=="addurl":
-     await query.message.delete()
+     back_to_database_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#database")]])
+     await query.message.delete() 
      uri = await bot.ask(user_id, "<b>please send your mongodb url.</b>\n\n<i>get your Mongodb url from [here](https://mongodb.com)</i>", disable_web_page_preview=True)
      if uri.text=="/cancel":
-        return await uri.reply_text(
-                  "Process Cancelled !",
-                  reply_markup=InlineKeyboardMarkup(buttons))
+        return await uri.reply_text("Process Cancelled !", reply_markup=back_to_database_btn)
      if not uri.text.startswith("mongodb+srv://") and not uri.text.endswith("majority"):
-        return await uri.reply("Invalid Mongodb URL",
-                   reply_markup=InlineKeyboardMarkup(buttons))
+        return await uri.reply("Invalid Mongodb URL", reply_markup=back_to_database_btn)
      await update_configs(user_id, 'db_uri', uri.text)
      await uri.reply("Successfully Database URL Added ✅",
-             reply_markup=InlineKeyboardMarkup(buttons))
+             reply_markup=back_to_database_btn)
   
   elif type=="seeurl":
      db_uri = (await get_configs(user_id))['db_uri']
      await query.answer(f"Database URL : {db_uri}", show_alert=True)
+     # No message edit here, so no reply_markup needed.
   
   elif type=="deleteurl":
      await update_configs(user_id, 'db_uri', None)
@@ -302,14 +301,10 @@ async def settings_query(bot, query):
         "Successfully Your Database URL Deleted",
         reply_markup=InlineKeyboardMarkup(buttons))
       
-  elif type=="filters":
+  elif type=="filters_menu": # Corrected entry point for filters
      await query.message.edit_text(
         "<b><u>Custom Filters</u></b>\n\nConfigure The Type Of Messages Which You Want Forward",
-        reply_markup=await filters_buttons(user_id))
-  
-  elif type=="nextfilters":
-     await query.edit_message_reply_markup( 
-        reply_markup=await next_filters_buttons(user_id))
+        reply_markup=await filters_menu_buttons(user_id))
    
   elif type.startswith("updatefilter"):
      i, key, value = type.split('-')
@@ -317,11 +312,9 @@ async def settings_query(bot, query):
         await update_configs(user_id, key, False)
      else:
         await update_configs(user_id, key, True)
-     if key in ['poll', 'protect']:
-        return await query.edit_message_reply_markup(
-           reply_markup=await next_filters_buttons(user_id)) 
+     # All filter updates now go back to the main filters menu
      await query.edit_message_reply_markup(
-        reply_markup=await filters_buttons(user_id))
+        reply_markup=await filters_menu_buttons(user_id))
    
   elif type.startswith("file_size"):
     settings = await get_configs(user_id)
@@ -329,8 +322,7 @@ async def settings_query(bot, query):
     i, limit = size_limit(settings['size_limit'])
     await query.message.edit_text(
        f'<b><u>Size Limit</u></b>\n\nYou Can Set File Size Limit To Forward\n\nStatus : Files With {limit} `{size} MB` Will Forward',
-       reply_markup=size_button(size))
-  
+       reply_markup=size_button(size)) # size_button already has correct back button
   elif type.startswith("update_size"):
     size = int(query.data.split('-')[1])
     if 0 < size > 2000:
@@ -340,9 +332,7 @@ async def settings_query(bot, query):
     await update_configs(user_id, 'file_size', size)
     i, limit = size_limit((await get_configs(user_id))['size_limit'])
     await query.message.edit_text(
-       f'<b><u>Size Limit</u></b>\n\nYou Can Set File Size Limit To Forward\n\nStatus : Files With {limit} `{size} MB` Will Forward',
-       reply_markup=size_button(size))
-  
+       f'<b><u>Size Limit</u></b>\n\nYou Can Set File Size Limit To Forward\n\nStatus : Files With {limit} `{size} MB` Will Forward', reply_markup=size_button(size)) # size_button already has correct back button
   elif type.startswith('update_limit'):
     i, limit, size = type.split('-')
     limit, sts = size_limit(limit)
@@ -350,16 +340,16 @@ async def settings_query(bot, query):
     # No need to redefine `buttons` here.
     await update_configs(user_id, 'size_limit', limit) 
     await query.message.edit_text(
-       f'<b><u>Size Limit</u></b>\n\nYou Can Set File Size Limit To Forward\n\nStatus : Files With {sts} `{size} MB` Will Forward',
-       reply_markup=size_button(int(size)))
+       f'<b><u>Size Limit</u></b>\n\nYou Can Set File Size Limit To Forward\n\nStatus : Files With {sts} `{size} MB` Will Forward', reply_markup=size_button(int(size))) # size_button already has correct back button
       
   elif type == "add_extension":
-    back_to_filters_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#filters_menu")]])
+    back_to_extension_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#get_extension")]])
     await query.message.delete() 
     ext = await bot.ask(user_id, text="Please Send Your Extensions (Seperete By Space)")
     if ext.text == '/cancel':
-       return await ext.reply_text("Process Cancelled", reply_markup=back_to_filters_btn)
+       return await ext.reply_text("Process Cancelled", reply_markup=back_to_extension_btn)
     extensions = ext.text.split(" ")
+    # Ensure 'extension' is initialized as a list if it's None
     # Ensure 'extension' is initialized as a list if it's None
     extension = (await get_configs(user_id))['extension']
     if extension:
@@ -368,10 +358,10 @@ async def settings_query(bot, query):
     else:
         extension = extensions
     await update_configs(user_id, 'extension', extension)
-    await ext.reply_text(
-        f"Successfully Updated", reply_markup=back_to_filters_btn)
+    await ext.reply_text(f"Successfully Updated", reply_markup=back_to_extension_btn)
       
   elif type == "get_extension":
+    # This menu is accessed from filters_menu, so back button should go there
     extensions = (await get_configs(user_id))['extension']
     btn = extract_btn(extensions)
     btn.append([InlineKeyboardButton('✚ Add ✚', 'settings#add_extension')])
@@ -383,17 +373,14 @@ async def settings_query(bot, query):
   
   elif type == "rmve_all_extension":
     await update_configs(user_id, 'extension', None)
-    back_to_filters_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#filters_menu")]])
-    await query.message.edit_text(text="Successfully Deleted",
-                                   reply_markup=back_to_filters_btn)
+    back_to_extension_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#get_extension")]])
+    await query.message.edit_text(text="Successfully Deleted", reply_markup=back_to_extension_btn)
   elif type == "add_keyword":
-    back_to_filters_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#filters_menu")]])
+    back_to_keyword_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#get_keyword")]])
     await query.message.delete()
     ask = await bot.ask(user_id, text="Please Send The Keywords (Seperete By Space)")
     if ask.text == '/cancel':
-       return await ask.reply_text(
-                  "Process Canceled",
-                  reply_markup=InlineKeyboardMarkup(buttons))
+       return await ask.reply_text("Process Canceled", reply_markup=back_to_keyword_btn)
     keywords = ask.text.split(" ")
     keyword = (await get_configs(user_id))['keywords']
     if keyword:
@@ -401,9 +388,8 @@ async def settings_query(bot, query):
             keyword.append(word)
     else:
         keyword = keywords
-    await update_configs(user_id, 'keywords', keyword)
-    await ask.reply_text(
-        f"Successfully Updated", reply_markup=back_to_filters_btn)
+    await update_configs(user_id, 'keywords', keyword) 
+    await ask.reply_text(f"Successfully Updated", reply_markup=back_to_keyword_btn)
   
   elif type == "get_keyword":
     keywords = (await get_configs(user_id))['keywords']
@@ -417,28 +403,30 @@ async def settings_query(bot, query):
       
   elif type == "rmve_all_keyword":
     await update_configs(user_id, 'keywords', None)
-    back_to_filters_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#filters_menu")]])
-    await query.message.edit_text(text="Successfully Deleted",
-                                   reply_markup=back_to_filters_btn)
+    back_to_keyword_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#get_keyword")]])
+    await query.message.edit_text(text="Successfully Deleted", reply_markup=back_to_keyword_btn)
   elif type.startswith("alert"):
     alert = type.split('_')[1]
     await query.answer(alert, show_alert=True)
       
 def main_buttons():
+  # New main menu layout as requested
   buttons = [[
        InlineKeyboardButton('🤖 Bots',
                     callback_data=f'settings#bots'),
        InlineKeyboardButton('🔥 Channels',
                     callback_data=f'settings#channels')
        ],[
-       InlineKeyboardButton('‍♀ Filters',
-                    callback_data=f'settings#filters_menu')
+       InlineKeyboardButton('✏️ Caption', # Caption is now a top-level item
+                    callback_data=f'settings#caption'),
+       InlineKeyboardButton('🕵‍♀ Filters', # Filters menu
+                    callback_data=f'settings#filters_menu') 
        ],[
-       InlineKeyboardButton('⚙️ Extra Settings',
-                    callback_data='settings#extra_settings_menu')
+       InlineKeyboardButton('⚙️ Extra Settings', # Extra Settings menu
+                    callback_data='settings#extra_settings_menu'),
+       InlineKeyboardButton('🔙 Back', callback_data='back') # Back button on the same line
        ],[      
-       InlineKeyboardButton('🔙 Back', callback_data='back')
-       ]]
+       ]] # Empty line for consistency, or remove if not needed
   return InlineKeyboardMarkup(buttons)
 
 def size_limit(limit):
@@ -518,9 +506,6 @@ async def filters_menu_buttons(user_id):
        InlineKeyboardButton('✅' if filters['text'] else '❌',
                     callback_data=f'settings#updatefilter-text-{filters["text"]}')
        ],[
-       InlineKeyboardButton('✏️ Caption',
-                    callback_data=f'settings#caption')
-       ],[
        InlineKeyboardButton('▶️ Skip Duplicate',
                     callback_data=f'settings_#updatefilter-duplicate-{filter_configs["duplicate"]}'),
        InlineKeyboardButton('✅' if filter_configs['duplicate'] else '❌',
@@ -551,6 +536,21 @@ async def filters_menu_buttons(user_id):
                     callback_data=f'settings_#updatefilter-animation-{filters["animation"]}'),
        InlineKeyboardButton('✅' if filters['animation'] else '❌',
                     callback_data=f'settings#updatefilter-animation-{filters["animation"]}')
+       ],[
+       InlineKeyboardButton('📁 Documents', # Added missing message types
+                    callback_data=f'settings_#updatefilter-document-{filters["document"]}'),
+       InlineKeyboardButton('✅' if filters['document'] else '❌',
+                    callback_data=f'settings#updatefilter-document-{filters["document"]}')
+       ],[
+       InlineKeyboardButton('🎞️ Videos', # Added missing message types
+                    callback_data=f'settings_#updatefilter-video-{filters["video"]}'),
+       InlineKeyboardButton('✅' if filters['video'] else '❌',
+                    callback_data=f'settings#updatefilter-video-{filters["video"]}')
+       ],[
+       InlineKeyboardButton('📷 Photos', # Added missing message types
+                    callback_data=f'settings_#updatefilter-photo-{filters["photo"]}'),
+       InlineKeyboardButton('✅' if filters['photo'] else '❌',
+                    callback_data=f'settings#updatefilter-photo-{filters["photo"]}')
        ],[
        InlineKeyboardButton('🃏 Stickers',
                     callback_data=f'settings_#updatefilter-sticker-{filters["sticker"]}'),
