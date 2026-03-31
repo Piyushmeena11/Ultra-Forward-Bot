@@ -11,7 +11,7 @@ import re, asyncio
 from database import db
 from config import temp
 from .test import CLIENT , start_clone_bot
-from translation import Translation
+from translation import Translation # This import is not used in this file
 from pyrogram import Client, filters 
 #from pyropatch.utils import unpack_new_file_id
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
