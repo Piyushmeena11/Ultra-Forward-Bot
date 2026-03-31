@@ -235,54 +235,12 @@ async def handle_caption_query(bot, query, user_id, caption_type):
             "<b><u>Custom Caption Settings</b></u>\n\nManage various aspects of your custom captions here.",
             reply_markup=await caption_main_menu_buttons(user_id)
         )
-    else:
-        # Fallback for any unhandled caption_type, should not happen if all are covered
-        await query.answer("Unknown caption setting.", show_alert=True)
-        # For preview, we'll construct a dictionary of settings to pass to custom_caption
-        caption_settings_for_preview = {
-            'caption_enabled': configs.get('caption_enabled', False),
-            'caption_header': configs.get('caption_header'),
-            'caption_footer': configs.get('caption_footer'),
-            'caption_prefix': configs.get('caption_prefix'),
-            'caption_suffix': configs.get('caption_suffix'),
-            'caption_delete_before_word': configs.get('caption_delete_before_word'),
-            'caption_delete_after_word': configs.get('caption_delete_after_word'),
-            'caption_delete_words_list': configs.get('caption_delete_words_list'),
-            'caption_replace_words_map': configs.get('caption_replace_words_map'),
-            'caption_link_remove': configs.get('caption_link_remove', False),
-            'caption_link_replace_pair': configs.get('caption_link_replace_pair'),
-            'caption_username_remove': configs.get('caption_username_remove', False),
-            'caption_username_replace_pair': configs.get('caption_username_replace_pair'),
-            'caption_length_limit': configs.get('caption_length_limit')
-        }
-
-        # Call custom_caption with dummy message and the new settings
-        # The custom_caption function in regix.py needs to be updated to accept these new settings
-        # and apply them. For now, it only takes `caption` and `caption_enabled`.
-        # This part will require a more significant refactor in regix.py.
-        
-        # For a temporary preview, let's just show the enabled status and a placeholder.
-        caption_status = "Enabled" if configs.get('caption_enabled', False) else "Disabled"
-        
-        # To get a real preview, we need to call custom_caption with a dummy message and all settings.
-        # This requires custom_caption to be updated first.
-        # For now, let's just show the enabled status and a placeholder for the full preview.
-        
-        # Placeholder for actual preview logic (will be implemented after regix.py update)
-        preview_text = "<i>(Full caption preview will appear here once all features are implemented in the processing pipeline.)</i>"
-        
-        # For now, let's just show the enabled status and a placeholder.
-        await query.message.edit_text(
-            f"<b><u>Current Caption Preview</b></u>\n\nCaption Feature: {caption_status}\n\n{preview_text}",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« Back', callback_data='settings#caption')]])
-        )
-
-    elif caption_type.startswith("toggle_caption_enabled"):
+    elif caption_type.startswith("toggle_caption_enabled"): # This was the problematic elif
         current_state = caption_type.split('-')[1] == 'True'
         new_state = not current_state
-        await update_configs(user_id, 'caption_enabled', False)
+        await update_configs(user_id, 'caption_enabled', new_state)
         await query.message.edit_text(
-            "<b><u>Custom Caption Settings</b></u>\n\nAll caption settings have been reset (only enabled state for now).",
+            "<b><u>Custom Caption Settings</b></u>\n\nManage various aspects of your custom captions here.",
             reply_markup=await caption_main_menu_buttons(user_id)
         )
     else:
