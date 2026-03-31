@@ -9,6 +9,7 @@ import asyncio
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from translation import Translation
+from .regix import custom_caption # Import custom_caption for preview
 from .test import get_configs, update_configs
 
 async def caption_main_menu_buttons(user_id):
@@ -18,29 +19,29 @@ async def caption_main_menu_buttons(user_id):
 
     buttons = [
         # Row 1
-        [InlineKeyboardButton('📝 HEADER', callback_data='settings#header'),
-         InlineKeyboardButton('FOOTER 📝', callback_data='settings#footer')],
+        [InlineKeyboardButton('📝 HEADER', callback_data='settings#caption_header_menu'),
+         InlineKeyboardButton('FOOTER 📝', callback_data='settings#caption_footer_menu')],
         # Row 2
-        [InlineKeyboardButton('➡️ PREFIX', callback_data='settings#prefix'),
-         InlineKeyboardButton('SUFFIX ⬅️', callback_data='settings#suffix')],
+        [InlineKeyboardButton('➡️ PREFIX', callback_data='settings#caption_prefix_menu'),
+         InlineKeyboardButton('SUFFIX ⬅️', callback_data='settings#caption_suffix_menu')],
         # Row 3
-        [InlineKeyboardButton('🗑️ DELETE BEFORE', callback_data='settings#delete_before'),
-         InlineKeyboardButton('DELETE AFTER 🗑️', callback_data='settings#delete_after')],
+        [InlineKeyboardButton('🗑️ DELETE BEFORE', callback_data='settings#caption_delete_before_menu'),
+         InlineKeyboardButton('DELETE AFTER 🗑️', callback_data='settings#caption_delete_after_menu')],
         # Row 4
-        [InlineKeyboardButton('🚫 DELETE WORDS', callback_data='settings#delete_words'),
-         InlineKeyboardButton('REPLACE WORDS 🔄', callback_data='settings#replace_words')],
+        [InlineKeyboardButton('🚫 DELETE WORDS', callback_data='settings#caption_delete_words_menu'),
+         InlineKeyboardButton('REPLACE WORDS 🔄', callback_data='settings#caption_replace_words_menu')],
         # Row 5
-        [InlineKeyboardButton('🔗 LINK REMOVE', callback_data='settings#link_remove'),
-         InlineKeyboardButton('LINK REPLACE 🔗', callback_data='settings#link_replace')],
+        [InlineKeyboardButton('🔗 LINK REMOVE', callback_data='settings#caption_link_remove_toggle'),
+         InlineKeyboardButton('LINK REPLACE 🔗', callback_data='settings#caption_link_replace_menu')],
         # Row 6
-        [InlineKeyboardButton('👤 REMOVE USERNAME', callback_data='settings#username_remove'),
-         InlineKeyboardButton('USERNAME REPLACE 👥', callback_data='settings#username_replace')],
+        [InlineKeyboardButton('👤 REMOVE USERNAME', callback_data='settings#caption_username_remove_toggle'),
+         InlineKeyboardButton('USERNAME REPLACE 👥', callback_data='settings#caption_username_replace_menu')],
         # Row 7
-        [InlineKeyboardButton('📏 CAPTION LENGTH', callback_data='settings#caption_length'),
-         InlineKeyboardButton('RENEW CAPTION ♻️', callback_data='settings#renew_caption')],
+        [InlineKeyboardButton('📏 CAPTION LENGTH', callback_data='settings#caption_length_menu'),
+         InlineKeyboardButton('RENEW CAPTION ♻️', callback_data='settings#caption_renew')],
         # Row 8
-        [InlineKeyboardButton('🗑️ RESET CAPTION', callback_data='settings#reset_caption'),
-         InlineKeyboardButton('SEE CAPTION 👀', callback_data='settings#see_caption')],
+        [InlineKeyboardButton('🗑️ RESET CAPTION', callback_data='settings#caption_reset'),
+         InlineKeyboardButton('SEE CAPTION 👀', callback_data='settings#caption_see')],
         # Row 9
         [InlineKeyboardButton(f"{'✅ Enabled' if caption_enabled else '❌ Disabled'}", callback_data=f'settings#toggle_caption_enabled-{caption_enabled}'),
          InlineKeyboardButton('« BACK', callback_data='settings#main')]
@@ -56,73 +57,232 @@ async def handle_caption_query(bot, query, user_id, caption_type):
             "<b><u>Custom Caption Settings</b></u>\n\nManage various aspects of your custom captions here.",
             reply_markup=await caption_main_menu_buttons(user_id)
         )
-    elif caption_type == "header":
-        # Placeholder for header logic
-        await query.answer("Header feature not yet implemented.", show_alert=True)
-        # Example: await query.message.edit_text("Send your header text...", reply_markup=back_to_caption_menu_btn)
-    elif caption_type == "footer":
-        # Placeholder for footer logic
-        await query.answer("Footer feature not yet implemented.", show_alert=True)
-    elif caption_type == "prefix":
-        # Placeholder for prefix logic
-        await query.answer("Prefix feature not yet implemented.", show_alert=True)
-    elif caption_type == "suffix":
-        # Placeholder for suffix logic
-        await query.answer("Suffix feature not yet implemented.", show_alert=True)
-    elif caption_type == "delete_before":
-        # Placeholder for delete before logic
-        await query.answer("Delete Before feature not yet implemented.", show_alert=True)
-    elif caption_type == "delete_after":
-        # Placeholder for delete after logic
-        await query.answer("Delete After feature not yet implemented.", show_alert=True)
-    elif caption_type == "delete_words":
-        # Placeholder for delete words logic
-        await query.answer("Delete Words feature not yet implemented.", show_alert=True)
-    elif caption_type == "replace_words":
-        # Placeholder for replace words logic
-        await query.answer("Replace Words feature not yet implemented.", show_alert=True)
-    elif caption_type == "link_remove":
-        # Placeholder for link remove logic
-        await query.answer("Link Remove feature not yet implemented.", show_alert=True)
-    elif caption_type == "link_replace":
-        # Placeholder for link replace logic
-        await query.answer("Link Replace feature not yet implemented.", show_alert=True)
-    elif caption_type == "username_remove":
-        # Placeholder for username remove logic
-        await query.answer("Remove Username feature not yet implemented.", show_alert=True)
-    elif caption_type == "username_replace":
-        # Placeholder for username replace logic
-        await query.answer("Replace Username feature not yet implemented.", show_alert=True)
-    elif caption_type == "caption_length":
-        # Placeholder for caption length logic
-        await query.answer("Caption Length feature not yet implemented.", show_alert=True)
-    elif caption_type == "renew_caption":
-        # Placeholder for renew caption logic
-        await query.answer("Renew Caption feature not yet implemented.", show_alert=True)
-    elif caption_type == "reset_caption":
-        # Placeholder for reset caption logic
-        # This will involve setting all caption-related fields to None or default
-        # For now, just reset the 'caption_enabled' state
-        await update_configs(user_id, 'caption_enabled', False)
+    
+    # Generic function to ask for text input
+    async def _ask_for_text_input(key, prompt_text, back_callback_data):
+        back_btn = InlineKeyboardMarkup([[InlineKeyboardButton('« Back', callback_data=f'settings#{back_callback_data}')]])
+        await query.message.delete()
+        try:
+            msg_to_edit = await bot.send_message(user_id, prompt_text)
+            user_input = await bot.listen(chat_id=user_id, timeout=300)
+            if user_input.text == "/cancel":
+                await user_input.delete()
+                return await msg_to_edit.edit_text("Process Canceled!", reply_markup=back_btn)
+            await update_configs(user_id, key, user_input.text)
+            await user_input.delete()
+            await msg_to_edit.edit_text("Successfully Updated!", reply_markup=back_btn)
+        except asyncio.exceptions.TimeoutError:
+            await msg_to_edit.edit_text('Process Has Been Automatically Cancelled', reply_markup=back_btn)
+        finally:
+            await query.message.edit_text(
+                "<b><u>Custom Caption Settings</b></u>\n\nManage various aspects of your custom captions here.",
+                reply_markup=await caption_main_menu_buttons(user_id)
+            )
+
+    # Generic function to ask for integer input
+    async def _ask_for_int_input(key, prompt_text, back_callback_data):
+        back_btn = InlineKeyboardMarkup([[InlineKeyboardButton('« Back', callback_data=f'settings#{back_callback_data}')]])
+        await query.message.delete()
+        try:
+            msg_to_edit = await bot.send_message(user_id, prompt_text)
+            user_input = await bot.listen(chat_id=user_id, timeout=300)
+            if user_input.text == "/cancel":
+                await user_input.delete()
+                return await msg_to_edit.edit_text("Process Canceled!", reply_markup=back_btn)
+            try:
+                value = int(user_input.text)
+                await update_configs(user_id, key, value)
+                await user_input.delete()
+                await msg_to_edit.edit_text("Successfully Updated!", reply_markup=back_btn)
+            except ValueError:
+                await user_input.delete()
+                return await msg_to_edit.edit_text("Invalid input. Please send a number.", reply_markup=back_btn)
+        except asyncio.exceptions.TimeoutError:
+            await msg_to_edit.edit_text('Process Has Been Automatically Cancelled', reply_markup=back_btn)
+        finally:
+            await query.message.edit_text(
+                "<b><u>Custom Caption Settings</b></u>\n\nManage various aspects of your custom captions here.",
+                reply_markup=await caption_main_menu_buttons(user_id)
+            )
+
+    # --- Handlers for each button ---
+    if caption_type == "caption_header_menu":
+        await _ask_for_text_input('caption_header', "Send the text you want to add as HEADER.\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_footer_menu":
+        await _ask_for_text_input('caption_footer', "Send the text you want to add as FOOTER.\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_prefix_menu":
+        await _ask_for_text_input('caption_prefix', "Send the text you want to add as PREFIX (e.g., `🔥` for each line).\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_suffix_menu":
+        await _ask_for_text_input('caption_suffix', "Send the text you want to add as SUFFIX.\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_delete_before_menu":
+        await _ask_for_text_input('caption_delete_before_word', "Send the word. Everything before this word will be deleted.\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_delete_after_menu":
+        await _ask_for_text_input('caption_delete_after_word', "Send the word. Everything after this word will be deleted.\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_delete_words_menu":
+        await _ask_for_text_input('caption_delete_words_list', "Send words to delete, separated by spaces (e.g., `word1 word2`).\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_replace_words_menu":
+        await _ask_for_text_input('caption_replace_words_map', "Send words to replace in `old=new` format, one pair per line.\nExample:\n`old_word1=new_word1\nold_word2=new_word2`\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_link_remove_toggle":
+        configs = await get_configs(user_id)
+        current_state = configs.get('caption_link_remove', False) # Get current state
+        new_state = not current_state
+        await update_configs(user_id, 'caption_link_remove', new_state)
         await query.message.edit_text(
-            "<b><u>Custom Caption Settings</b></u>\n\nAll caption settings have been reset (only enabled state for now).",
+            "<b><u>Custom Caption Settings</b></u>\n\nManage various aspects of your custom captions here.",
             reply_markup=await caption_main_menu_buttons(user_id)
         )
-    elif caption_type == "see_caption":
-        # Placeholder for seeing compiled caption
-        configs = await get_configs(user_id)
-        # For now, just show the enabled status
-        caption_status = "Enabled" if configs.get('caption_enabled', False) else "Disabled"
+    elif caption_type == "caption_link_replace_menu":
+        await _ask_for_text_input('caption_link_replace_pair', "Send old and new link in `old_link=new_link` format.\nExample:\n`https://old.com=https://new.com`\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_username_remove_toggle":
+        configs = await get_configs(user_id) # Get current state
+        current_state = configs.get('caption_username_remove', False)
+        new_state = not current_state
+        await update_configs(user_id, 'caption_username_remove', new_state)
         await query.message.edit_text(
-            f"<b><u>Current Caption Preview</b></u>\n\nCaption Feature: {caption_status}\n\n(Detailed preview of header, footer, etc. will be available once implemented.)",
+            "<b><u>Custom Caption Settings</b></u>\n\nManage various aspects of your custom captions here.",
+            reply_markup=await caption_main_menu_buttons(user_id)
+        )
+    elif caption_type == "caption_username_replace_menu":
+        await _ask_for_text_input('caption_username_replace_pair', "Send old and new username in `@old=@new` format.\nExample:\n`@olduser=@newuser`\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_length_menu":
+        await _ask_for_int_input('caption_length_limit', "Send the maximum caption length (number).\n/cancel to cancel.", "caption")
+    elif caption_type == "caption_renew":
+        # This will essentially re-display the current settings and a preview
+        await query.message.edit_text(
+            "<b><u>Custom Caption Settings</b></u>\n\nCaption settings renewed. See preview below.",
+            reply_markup=await caption_main_menu_buttons(user_id)
+        )
+        # Simulate a preview for renew
+        await handle_caption_query(bot, query, user_id, "caption_see")
+    elif caption_type == "caption_reset":
+        # Reset all caption-related settings to None or default
+        await update_configs(user_id, 'caption_enabled', False)
+        await update_configs(user_id, 'caption_header', None)
+        await update_configs(user_id, 'caption_footer', None)
+        await update_configs(user_id, 'caption_prefix', None)
+        await update_configs(user_id, 'caption_suffix', None)
+        await update_configs(user_id, 'caption_delete_before_word', None)
+        await update_configs(user_id, 'caption_delete_after_word', None)
+        await update_configs(user_id, 'caption_delete_words_list', None)
+        await update_configs(user_id, 'caption_replace_words_map', None)
+        await update_configs(user_id, 'caption_link_remove', False)
+        await update_configs(user_id, 'caption_link_replace_pair', None)
+        await update_configs(user_id, 'caption_username_remove', False)
+        await update_configs(user_id, 'caption_username_replace_pair', None)
+        await update_configs(user_id, 'caption_length_limit', None)
+        
+        await query.message.edit_text(
+            "<b><u>Custom Caption Settings</b></u>\n\nAll caption settings have been reset to default.",
+            reply_markup=await caption_main_menu_buttons(user_id)
+        )
+    elif caption_type == "caption_see":
+        configs = await get_configs(user_id)
+        # Create a dummy message object for preview
+        class DummyMessage:
+            def __init__(self, text, media=None, caption=None):
+                self.text = text
+                self.media = media
+                self.caption = caption
+                self.video = None
+                self.document = None
+                self.audio = None
+                self.photo = None
+                # Add a dummy html attribute for fcaption.html
+                self.html = caption if caption else text
+
+            @property
+            def media(self):
+                return self._media
+
+            @media.setter
+            def media(self, value):
+                self._media = value
+                if value == 'video': self.video = True
+                elif value == 'document': self.document = True
+                elif value == 'audio': self.audio = True
+                elif value == 'photo': self.photo = True
+
+        # Use a sample original caption for preview
+        sample_original_caption = "This is a sample original caption with a link: https://example.com and a username: @sampleuser. Some more text here."
+        
+        # Pass all relevant configs to custom_caption
+        dummy_msg = DummyMessage(text=sample_original_caption, caption=sample_original_caption, media='document') # Assuming a document for file_name/size for custom_caption
+        
+        # Need to pass all caption-related configs to custom_caption
+        # For preview, we don't have actual file_name, file_size, etc.
+        # custom_caption needs to be adapted to handle this gracefully or we pass dummy values.
+        # For now, let's pass None for file_name, size, and use the sample_original_caption as fcaption
+        
+        # The custom_caption function in regix.py expects a 'caption' argument which is the old single custom caption.
+        # We need to pass None for that, and let the new logic use the individual configs.
+
+        # Call custom_caption with dummy message and the new settings
+        # The custom_caption function in regix.py is now updated to accept these new settings.
+        preview_caption = custom_caption(dummy_msg, None, caption_settings_for_preview)
+        
+        await query.message.edit_text(
+            f"<b><u>Current Caption Preview</b></u>\n\n"
+            f"Caption Feature: {'✅ Enabled' if configs.get('caption_enabled', False) else '❌ Disabled'}\n\n"
+            f"<b>Preview:</b>\n<code>{preview_caption}</code>",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« Back', callback_data='settings#caption')]])
         )
+
     elif caption_type.startswith("toggle_caption_enabled"):
         current_state = caption_type.split('-')[1] == 'True'
         new_state = not current_state
-        await update_configs(user_id, 'caption_enabled', new_state)
+        await update_configs(user_id, 'caption_enabled', new_state) # Update with new_state
         await query.message.edit_text(
             "<b><u>Custom Caption Settings</b></u>\n\nManage various aspects of your custom captions here.",
+            reply_markup=await caption_main_menu_buttons(user_id)
+        )
+    else:
+        # Fallback for any unhandled caption_type, should not happen if all are covered
+        await query.answer("Unknown caption setting.", show_alert=True)
+        # For preview, we'll construct a dictionary of settings to pass to custom_caption
+        caption_settings_for_preview = {
+            'caption_enabled': configs.get('caption_enabled', False),
+            'caption_header': configs.get('caption_header'),
+            'caption_footer': configs.get('caption_footer'),
+            'caption_prefix': configs.get('caption_prefix'),
+            'caption_suffix': configs.get('caption_suffix'),
+            'caption_delete_before_word': configs.get('caption_delete_before_word'),
+            'caption_delete_after_word': configs.get('caption_delete_after_word'),
+            'caption_delete_words_list': configs.get('caption_delete_words_list'),
+            'caption_replace_words_map': configs.get('caption_replace_words_map'),
+            'caption_link_remove': configs.get('caption_link_remove', False),
+            'caption_link_replace_pair': configs.get('caption_link_replace_pair'),
+            'caption_username_remove': configs.get('caption_username_remove', False),
+            'caption_username_replace_pair': configs.get('caption_username_replace_pair'),
+            'caption_length_limit': configs.get('caption_length_limit')
+        }
+
+        # Call custom_caption with dummy message and the new settings
+        # The custom_caption function in regix.py needs to be updated to accept these new settings
+        # and apply them. For now, it only takes `caption` and `caption_enabled`.
+        # This part will require a more significant refactor in regix.py.
+        
+        # For a temporary preview, let's just show the enabled status and a placeholder.
+        caption_status = "Enabled" if configs.get('caption_enabled', False) else "Disabled"
+        
+        # To get a real preview, we need to call custom_caption with a dummy message and all settings.
+        # This requires custom_caption to be updated first.
+        # For now, let's just show the enabled status and a placeholder for the full preview.
+        
+        # Placeholder for actual preview logic (will be implemented after regix.py update)
+        preview_text = "<i>(Full caption preview will appear here once all features are implemented in the processing pipeline.)</i>"
+        
+        # For now, let's just show the enabled status and a placeholder.
+        await query.message.edit_text(
+            f"<b><u>Current Caption Preview</b></u>\n\nCaption Feature: {caption_status}\n\n{preview_text}",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« Back', callback_data='settings#caption')]])
+        )
+
+    elif caption_type.startswith("toggle_caption_enabled"):
+        current_state = caption_type.split('-')[1] == 'True'
+        new_state = not current_state
+        await update_configs(user_id, 'caption_enabled', False)
+        await query.message.edit_text(
+            "<b><u>Custom Caption Settings</b></u>\n\nAll caption settings have been reset (only enabled state for now).",
             reply_markup=await caption_main_menu_buttons(user_id)
         )
     else:
