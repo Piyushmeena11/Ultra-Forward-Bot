@@ -291,9 +291,12 @@ async def settings_query(bot, query):
   # Route all caption-related callbacks to the new caption_settings.py handler
   elif type == "caption": # Main entry point for caption settings
       await handle_caption_query(bot, query, user_id, "caption")
-  elif type.startswith("caption_header_menu") or type.startswith("caption_footer_menu") or \
-       type.startswith("caption_prefix_menu") or type.startswith("caption_suffix_menu") or \
-       type.startswith("caption_delete_before_menu") or type.startswith("caption_delete_after_menu") or \
+  elif type.startswith("caption_header_menu") or type.startswith("caption_header_remove") or \
+       type.startswith("caption_footer_menu") or type.startswith("caption_footer_remove") or \
+       type.startswith("caption_prefix_menu") or type.startswith("caption_prefix_remove") or \
+       type.startswith("caption_suffix_menu") or type.startswith("caption_suffix_remove") or \
+       type.startswith("caption_delete_before_menu") or type.startswith("caption_delete_before_remove") or \
+       type.startswith("caption_delete_after_menu") or type.startswith("caption_delete_after_remove") or \
        type.startswith("caption_delete_words_menu") or type.startswith("caption_replace_words_menu") or \
        type.startswith("caption_link_remove_toggle") or type.startswith("caption_link_replace_menu") or \
        type.startswith("caption_username_remove_toggle") or type.startswith("caption_username_replace_menu") or \
