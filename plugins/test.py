@@ -207,7 +207,10 @@ async def get_configs(user_id):
 
 async def update_configs(user_id, key, value):
   current = await db.get_configs(user_id)
-  if key in ['caption', 'duplicate', 'db_uri', 'forward_tag', 'protect', 'file_size', 'size_limit', 'extension', 'keywords', 'button', 'pinning']: # Added 'pinning'
+  if key in ['caption', 'duplicate', 'db_uri', 'forward_tag', 'protect', 'file_size', 'size_limit', 'extension', 'keywords', 'button', 'pinning', # Existing
+              'caption_enabled', 'caption_header', 'caption_footer', 'caption_prefix', 'caption_suffix', # New caption settings
+              'caption_delete_before', 'caption_delete_after', 'caption_delete_words', 'caption_replace_words',
+              'caption_link_remove', 'caption_link_replace', 'caption_username_remove', 'caption_username_replace', 'caption_length_limit']: # New caption settings
      current[key] = value
   else: 
      current['filters'][key] = value
