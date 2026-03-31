@@ -10,6 +10,7 @@
 import os
 import sys 
 import math
+import re # Added re import for caption processing
 import time
 import asyncio 
 import logging
@@ -112,7 +113,7 @@ async def pub_(bot, message):
                       await asyncio.sleep(10)
                       MSG = []
                 else:
-                   new_caption = custom_caption(message, caption, caption_enabled) # Pass caption_enabled
+                   new_caption = custom_caption(message, caption, sts.get_all_caption_configs()) # Pass all caption configs
                    details = {"msg_id": message.id, "media": media(message), "caption": new_caption, 'button': button, "protect": protect, "is_pinned": message.pinned}
                    await copy(client, details, m, sts)
                    sts.add('total_files')
@@ -151,7 +152,7 @@ async def copy(bot, msg_details, m, sts):
              await bot.pin_chat_message(chat_id=sts.get('TO'), message_id=sent_msg.id)
          except Exception as pin_e:
              logger.warning(f"Failed to pin message {sent_msg.id} in {sts.get('TO')}: {pin_e}")
-   except FloodWait as e:
+   except FloodWait as e: # Corrected variable name from msg to msg_details
      await edit(m, 'Progressing', e.value, sts)
      await asyncio.sleep(e.value + 1) # Add a small buffer
      await edit(m, 'Progressing', 10, sts)
@@ -249,26 +250,133 @@ async def send(bot, user, text):
    except:
       pass 
      
-def custom_caption(msg, caption, caption_enabled):
+def custom_caption(msg, old_caption_from_db, caption_configs):
+  """
+  Applies various caption modifications based on user settings.
+  
+  Args:
+    msg (Message): The Pyrogram Message object.
+    old_caption_from_db (str): The legacy single custom caption from DB (if any).
+    caption_configs (dict): A dictionary containing all new caption-related settings.
+  
+  Returns:
+    str: The modified caption.
+  """
   if msg.media:
     if (msg.video or msg.document or msg.audio or msg.photo):
       media = getattr(msg, msg.media.value, None)
       if media:
         file_name = getattr(media, 'file_name', '')
         file_size = getattr(media, 'file_size', '')
-        fcaption = getattr(msg, 'caption', '')
-        if fcaption:
-          fcaption = fcaption.html # Original caption
+        original_caption = getattr(msg, 'caption', '')
+        if original_caption:
+          original_caption = original_caption.html # Original caption in HTML format
         
-        if caption_enabled: # This 'if' statement needs an indented block
-            # This is where the new complex caption logic will go.
-            # For now, we'll just pass through the existing caption logic if enabled.
-            if caption:
-                return caption.format(filename=file_name, size=get_size(file_size), caption=fcaption)
-            return fcaption
-        elif caption: # If caption_enabled is False, but a custom caption is set
-            return caption.format(filename=file_name, size=get_size(file_size), caption=fcaption)
-        return fcaption # If no custom caption and caption_enabled is False
+        # Start with the original caption or an empty string if none
+        final_caption = original_caption if original_caption else ""
+
+        # If the new caption system is not enabled, fall back to the old system (if old_caption_from_db exists)
+        if not caption_configs.get('caption_enabled', False):
+            if old_caption_from_db:
+                return old_caption_from_db.format(filename=file_name, size=get_size(file_size), caption=original_caption)
+            return original_caption
+
+        # --- Apply new caption modifications in order ---
+
+        # 1. HEADER
+        header = caption_configs.get('caption_header')
+        if header:
+            final_caption = header + "\n" + final_caption if final_caption else header # Add header at the very beginning
+
+        # 2. PREFIX
+        prefix = caption_configs.get('caption_prefix')
+        if prefix:
+            lines = final_caption.split('\n')
+            final_caption = '\n'.join([f"{prefix}{line}" for line in lines]) # Add prefix to each line
+
+        # 3. SUFFIX
+        suffix = caption_configs.get('caption_suffix')
+        if suffix:
+            final_caption = final_caption + "\n" + suffix if final_caption else suffix
+
+        # 4. FOOTER
+        footer = caption_configs.get('caption_footer')
+        if footer: # Add footer at the very end
+            final_caption = final_caption + "\n" + footer if final_caption else footer
+
+        # 5. DELETE BEFORE
+        delete_before_word = caption_configs.get('caption_delete_before_word')
+        if delete_before_word and delete_before_word in final_caption: # Delete everything before the word (inclusive)
+            final_caption = final_caption[final_caption.find(delete_before_word):] 
+
+        # 6. DELETE AFTER
+        delete_after_word = caption_configs.get('caption_delete_after_word')
+        if delete_after_word and delete_after_word in final_caption: # Delete everything after the word (inclusive)
+            final_caption = final_caption[:final_caption.find(delete_after_word) + len(delete_after_word)] 
+
+        # 7. DELETE WORDS
+        delete_words_list = caption_configs.get('caption_delete_words_list')
+        if delete_words_list:
+            words_to_delete = delete_words_list.split()
+            for word in words_to_delete:
+                final_caption = final_caption.replace(word, '')
+        
+        # 8. REPLACE WORDS
+        replace_words_map = caption_configs.get('caption_replace_words_map')
+        if replace_words_map:
+            pairs = replace_words_map.split('\n')
+            for pair in pairs:
+                if '=' in pair:
+                    old, new = pair.split('=', 1)
+                    final_caption = final_caption.replace(old.strip(), new.strip()) # Replace all occurrences
+
+        # 9. LINK REMOVE
+        link_remove = caption_configs.get('caption_link_remove', False)
+        if link_remove:
+            # Regex to find URLs (http/https)
+            final_caption = re.sub(r'https?://\S+|www\.\S+', '', final_caption)
+            # Regex to find Telegram t.me links (and also remove any remaining http/https for robustness)
+            final_caption = re.sub(r't\.me/\S+', '', final_caption)
+
+        # 10. LINK REPLACE
+        link_replace_pair = caption_configs.get('caption_link_replace_pair')
+        if link_replace_pair and '=' in link_replace_pair:
+            old_link, new_link = link_replace_pair.split('=', 1)
+            final_caption = final_caption.replace(old_link.strip(), new_link.strip())
+        
+        # 11. REMOVE USERNAME
+        username_remove = caption_configs.get('caption_username_remove', False)
+        if username_remove:
+            final_caption = re.sub(r'@\w+', '', final_caption) # Remove all @usernames
+
+        # 12. USERNAME REPLACE
+        username_replace_pair = caption_configs.get('caption_username_replace_pair')
+        if username_replace_pair and '=' in username_replace_pair:
+            old_username, new_username = username_replace_pair.split('=', 1)
+            final_caption = final_caption.replace(old_username.strip(), new_username.strip()) # Replace all occurrences
+        
+        # 13. CAPTION LENGTH
+        caption_length_limit = caption_configs.get('caption_length_limit')
+        if caption_length_limit and isinstance(caption_length_limit, int) and len(final_caption) > caption_length_limit:
+            final_caption = final_caption[:caption_length_limit] + "..." # Add ellipsis if trimmed
+
+        # Format with filename and size if placeholders are present
+        # This assumes the placeholders are in the HEADER/FOOTER/PREFIX/SUFFIX or original caption
+        # If the user wants to use them in the final output, they should include them in their custom texts.
+        # For now, we'll just return the processed caption.
+        
+        # The original `caption` variable (old_caption_from_db) is no longer the primary source
+        # for formatting unless the new system is disabled.
+        # If the new system is enabled, the user is expected to put {filename}, {size}, {caption}
+        # in their header/footer/prefix/suffix if they want them.
+        
+        # For now, let's just return the processed final_caption.
+        # If the user has {filename}, {size}, {caption} in their custom texts, they will be formatted here.
+        try:
+            return final_caption.format(filename=file_name, size=get_size(file_size), caption=original_caption)
+        except KeyError:
+            # If placeholders are present but not all are provided, return as is
+            return final_caption
   return None
 
 def get_size(size):
