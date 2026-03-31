@@ -11,14 +11,14 @@ import asyncio
 from database import db
 from config import Config
 from translation import Translation
-from pyrogram import Client, filters
-from .test import get_configs, update_configs, CLIENT, parse_buttons
+from pyrogram import Client, filters # Removed get_configs, update_configs, parse_buttons from here
+from .test import CLIENT, get_configs, update_configs, parse_buttons # Kept CLIENT, get_configs, update_configs, parse_buttons
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 CLIENT = CLIENT()
 
 
-
+from .caption_settings import handle_caption_query # New import for caption features
 @Client.on_message(filters.private & filters.command(['settings']))
 async def settings(client, message):
     text="<b>Change Your Settings As Your Wish</b>"
@@ -151,66 +151,8 @@ async def settings_query(bot, query):
         "Successfully Updated",
         reply_markup=back_to_channels_btn)
 
-                               
-  elif type=="caption":
-     buttons = []
-     data = await get_configs(user_id)
-     caption = data['caption']
-     if caption is None:
-        buttons.append([InlineKeyboardButton('✚ Add Caption ✚', 
-                      callback_data="settings#addcaption")])
-     else:
-        buttons.append([InlineKeyboardButton('👀 See Caption', 
-                      callback_data="settings#seecaption")])
-        buttons[-1].append(InlineKeyboardButton('🗑️ Delete Caption', 
-                      callback_data="settings#deletecaption"))
-     buttons.append([InlineKeyboardButton('🔙 Back', # Caption is now a top-level item
-                      callback_data="settings#main")]) # Back to main settings
-     await query.message.edit_text(
-        "<b><u>Custom Caption</b></u>\n\nYou Can Set A Custom Caption To Videos And Documents. Normaly Use Its Default Caption\n\n<b><u>Available Fillings :</b></u>\n\n<code>{filename}</code> : Filename\n<code>{size}</code> : File Size\n<code>{caption}</code> : Default Caption",
-        reply_markup=InlineKeyboardMarkup(buttons))
-                               
-  elif type=="seecaption":   
-     data = await get_configs(user_id)
-     buttons = [[InlineKeyboardButton('✏️ Edit Caption', 
-                  callback_data="settings#addcaption")
-               ],[
-               InlineKeyboardButton('🔙 Back', # Back to caption menu
-                 callback_data="settings#caption")]]
-     await query.message.edit_text(
-        f"<b><u>Your Custom Caption</b></u>\n\n<code>{data['caption']}</code>",
-        reply_markup=InlineKeyboardMarkup(buttons)) # Back to caption menu
-    
-  elif type=="deletecaption":
-     await update_configs(user_id, 'caption', None)
-     back_to_caption_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#caption")]])
-     await query.message.edit_text(
-        "Successfully Updated",
-        reply_markup=back_to_caption_btn)
-                              
-  elif type=="addcaption":
-     back_to_caption_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#caption")]])
-     await query.message.delete()
-     try:
-         text = await bot.send_message(query.message.chat.id, "Send your custom caption\n/cancel - <code>cancel this process</code>")
-         caption = await bot.listen(chat_id=user_id, timeout=300)
-         if caption.text=="/cancel":
-            await caption.delete()
-            return await text.edit_text("Process Canceled !", reply_markup=back_to_caption_btn)
-         try:
-            caption.text.format(filename='', size='', caption='')
-         except KeyError as e:
-            await caption.delete()
-            return await text.edit_text(
-               f"Wrong Filling {e} Used In Your Caption. Change It",
-               reply_markup=back_to_caption_btn)
-         await update_configs(user_id, 'caption', caption.text)
-         await caption.delete()
-         await text.edit_text(
-            "Successfully Updated",
-            reply_markup=back_to_caption_btn)
-     except asyncio.exceptions.TimeoutError:
-         await text.edit_text('Process Has Been Automatically Cancelled', reply_markup=back_to_caption_btn)
+  elif type.startswith("caption") or type.startswith("seecaption") or type.startswith("deletecaption") or type.startswith("addcaption"):
+      await handle_caption_query(bot, query, user_id, type)
 
   elif type=="button":
      buttons = []
