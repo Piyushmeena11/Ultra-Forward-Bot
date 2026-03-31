@@ -43,7 +43,7 @@ async def pub_(bot, message):
     if not sts.verify():
       await message.answer("Your Are Clicking On My Old Button", show_alert=True)
       return await message.message.delete()
-    i = sts.get(full=True)
+    i = sts.get(full=True) # This line is fine, but the next one needs to be updated
     if i.TO in temp.IS_FRWD_CHAT:
       return await message.answer("In Target Chat A Task Is Progressing. Please Wait Until Task Complete", show_alert=True)
     m = await msg_edit(message.message, "Verifying Your Data's, Please Wait.")
@@ -67,7 +67,7 @@ async def pub_(bot, message):
        await msg_edit(m, f"Please Make Your [UserBot / Bot](t.me/{_bot['username']}) Admin In Target Channel With Full Permissions", retry_btn(frwd_id), True)
        return await stop(client, user)
     temp.forwardings += 1
-    await db.add_frwd(user)
+    await db.add_frwd(user) # This line is fine
     await send(client, user, "🩷 Forwarding Started")
     sts.add(time=True)
     sleep = 1 if _bot['is_bot'] else 10
@@ -112,8 +112,8 @@ async def pub_(bot, message):
                       await asyncio.sleep(10)
                       MSG = []
                 else:
-                   new_caption = custom_caption(message, caption)
-                   details = {"msg_id": message.id, "media": media(message), "caption": new_caption, 'button': button, "protect": protect}
+                   new_caption = custom_caption(message, caption) # This line is fine
+                   details = {"msg_id": message.id, "media": media(message), "caption": new_caption, 'button': button, "protect": protect, "is_pinned": message.pinned} # Added is_pinned
                    await copy(client, details, m, sts)
                    sts.add('total_files')
                    await asyncio.sleep(sleep) 
@@ -126,7 +126,7 @@ async def pub_(bot, message):
         await edit(m, 'Completed', "completed", sts) 
         await stop(client, user)
             
-async def copy(bot, msg, m, sts):
+async def copy(bot, msg_details, m, sts): # Renamed msg to msg_details for clarity
    try:                                  
      if msg.get("media") and msg.get("caption"):
         await bot.send_cached_media(
@@ -134,7 +134,7 @@ async def copy(bot, msg, m, sts):
               file_id=msg.get("media"),
               caption=msg.get("caption"),
               reply_markup=msg.get('button'),
-              protect_content=msg.get("protect"))
+              protect_content=msg.get("protect")) # This line is fine
      else:
         await bot.copy_message(
               chat_id=sts.get('TO'),
@@ -142,7 +142,14 @@ async def copy(bot, msg, m, sts):
               caption=msg.get("caption"),
               message_id=msg.get("msg_id"),
               reply_markup=msg.get('button'),
-              protect_content=msg.get("protect"))
+              protect_content=msg.get("protect")) # This line is fine
+     
+     # Pinning logic
+     if sts.get('pinning') and msg_details.get("is_pinned"): # Check if pinning is enabled and source message was pinned
+         try:
+             await bot.pin_chat_message(chat_id=sts.get('TO'), message_id=sent_msg.id)
+         except Exception as pin_e:
+             logger.warning(f"Failed to pin message {sent_msg.id} in {sts.get('TO')}: {pin_e}")
    except FloodWait as e:
      await edit(m, 'Progressing', e.value, sts)
      await asyncio.sleep(e.value)
