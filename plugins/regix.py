@@ -260,11 +260,15 @@ def custom_caption(msg, caption, caption_enabled):
         if fcaption:
           fcaption = fcaption.html # Original caption
         
-        if caption_enabled:
-            # This is where the new complex caption logic will go
-        if caption:
-          return caption.format(filename=file_name, size=get_size(file_size), caption=fcaption)
-        return fcaption
+        if caption_enabled: # This 'if' statement needs an indented block
+            # This is where the new complex caption logic will go.
+            # For now, we'll just pass through the existing caption logic if enabled.
+            if caption:
+                return caption.format(filename=file_name, size=get_size(file_size), caption=fcaption)
+            return fcaption
+        elif caption: # If caption_enabled is False, but a custom caption is set
+            return caption.format(filename=file_name, size=get_size(file_size), caption=fcaption)
+        return fcaption # If no custom caption and caption_enabled is False
   return None
 
 def get_size(size):
