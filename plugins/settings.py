@@ -522,30 +522,6 @@ async def filters_menu_buttons(user_id):
   filter_configs = await get_configs(user_id)
   filters = filter_configs['filters']
   buttons = [[
-       InlineKeyboardButton('🏷️ Forward Tag',
-                    callback_data=f'settings_#updatefilter-forward_tag-{filter_configs["forward_tag"]}'),
-       InlineKeyboardButton('✅' if filter_configs['forward_tag'] else '❌',
-                    callback_data=f'settings#updatefilter-forward_tag-{filter_configs["forward_tag"]}')
-       ],[
-       InlineKeyboardButton('🖍️ Texts',
-                    callback_data=f'settings_#updatefilter-text-{filters["text"]}'),
-       InlineKeyboardButton('✅' if filters['text'] else '❌',
-                    callback_data=f'settings#updatefilter-text-{filters["text"]}')
-       ],[
-       InlineKeyboardButton('▶️ Skip Duplicate',
-                    callback_data=f'settings_#updatefilter-duplicate-{filter_configs["duplicate"]}'),
-       InlineKeyboardButton('✅' if filter_configs['duplicate'] else '❌',
-                    callback_data=f'settings#updatefilter-duplicate-{filter_configs["duplicate"]}')
-       ],[
-       InlineKeyboardButton('🛑 Size Limit',
-                    callback_data='settings#file_size')
-       ],[
-       InlineKeyboardButton('💾 Extension',
-                    callback_data='settings#get_extension')
-       ],[
-       InlineKeyboardButton('📌 Keywords',
-                    callback_data='settings#get_keyword')
-       ],[
        InlineKeyboardButton('--- Message Types ---', callback_data='settings#alert_Message_Types')
        ],[
        InlineKeyboardButton('🎧 Audios',
@@ -592,6 +568,30 @@ async def filters_menu_buttons(user_id):
                     callback_data=f'settings_#updatefilter-protect-{filter_configs["protect"]}'),
        InlineKeyboardButton('✅' if filter_configs['protect'] else '❌',
                     callback_data=f'settings#updatefilter-protect-{filter_configs["protect"]}')
+       ],[
+       InlineKeyboardButton('🏷️ Forward Tag',
+                    callback_data=f'settings_#updatefilter-forward_tag-{filter_configs["forward_tag"]}'),
+       InlineKeyboardButton('✅' if filter_configs['forward_tag'] else '❌',
+                    callback_data=f'settings#updatefilter-forward_tag-{filter_configs["forward_tag"]}')
+       ],[
+       InlineKeyboardButton('🖍️ Texts',
+                    callback_data=f'settings_#updatefilter-text-{filters["text"]}'),
+       InlineKeyboardButton('✅' if filters['text'] else '❌',
+                    callback_data=f'settings#updatefilter-text-{filters["text"]}')
+       ],[
+       InlineKeyboardButton('▶️ Skip Duplicate',
+                    callback_data=f'settings_#updatefilter-duplicate-{filter_configs["duplicate"]}'),
+       InlineKeyboardButton('✅' if filter_configs['duplicate'] else '❌',
+                    callback_data=f'settings#updatefilter-duplicate-{filter_configs["duplicate"]}')
+       ],[
+       InlineKeyboardButton('🛑 Size Limit',
+                    callback_data='settings#file_size')
+       ],[
+       InlineKeyboardButton('💾 Extension',
+                    callback_data='settings#get_extension')
+       ],[
+       InlineKeyboardButton('📌 Keywords',
+                    callback_data='settings#get_keyword')
        ],[
        InlineKeyboardButton('🔙 back',
                     callback_data="settings#main")
