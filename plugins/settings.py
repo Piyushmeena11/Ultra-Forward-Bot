@@ -165,7 +165,7 @@ async def settings_query(bot, query):
         buttons[-1].append(InlineKeyboardButton('🗑️ Delete Caption', 
                       callback_data="settings#deletecaption"))
      buttons.append([InlineKeyboardButton('🔙 Back', # Caption is now a top-level item
-                      callback_data="settings#main")])
+                      callback_data="settings#main")]) # Back to main settings
      await query.message.edit_text(
         "<b><u>Custom Caption</b></u>\n\nYou Can Set A Custom Caption To Videos And Documents. Normaly Use Its Default Caption\n\n<b><u>Available Fillings :</b></u>\n\n<code>{filename}</code> : Filename\n<code>{size}</code> : File Size\n<code>{caption}</code> : Default Caption",
         reply_markup=InlineKeyboardMarkup(buttons))
@@ -179,7 +179,7 @@ async def settings_query(bot, query):
                  callback_data="settings#caption")]]
      await query.message.edit_text(
         f"<b><u>Your Custom Caption</b></u>\n\n<code>{data['caption']}</code>",
-        reply_markup=InlineKeyboardMarkup(buttons))
+        reply_markup=InlineKeyboardMarkup(buttons)) # Back to caption menu
     
   elif type=="deletecaption":
      await update_configs(user_id, 'caption', None)
@@ -224,7 +224,7 @@ async def settings_query(bot, query):
         buttons[-1].append(InlineKeyboardButton('🗑️ Remove Button ', 
                       callback_data="settings#deletebutton"))
      buttons.append([InlineKeyboardButton('🔙 Back', 
-                      callback_data="settings#extra_settings_menu")])
+                      callback_data="settings#extra_settings_menu")]) # Back to extra settings menu
      await query.message.edit_text(
         "<b><u>Custom Button</b></u>\n\nYou Can Set A Inline Button To Messages.\n\n<b><u>Format :</b></u>\n`[Madflix Botz][buttonurl:https://t.me/Madflix_Bots]`\n",
         reply_markup=InlineKeyboardMarkup(buttons))
@@ -256,7 +256,7 @@ async def settings_query(bot, query):
       
   elif type=="deletebutton":
      await update_configs(user_id, 'button', None)
-     back_to_button_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#button")]])
+     back_to_button_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#button")]]) # Corrected back button
      await query.message.edit_text(
         "Successfully Button Deleted",
         reply_markup=back_to_button_btn)
@@ -273,7 +273,7 @@ async def settings_query(bot, query):
         buttons[-1].append(InlineKeyboardButton('🗑️ Remove URL', 
                       callback_data="settings#deleteurl"))
      buttons.append([InlineKeyboardButton('🔙 Back', 
-                      callback_data="settings#extra_settings_menu")]) # Correct
+                      callback_data="settings#extra_settings_menu")]) # Back to extra settings menu
      await query.message.edit_text(
         "<b><u>Database</u></b>\n\nDatabase Is Required For Store Your Duplicate Messages Permenant. Other Wise Stored Duplicate Media May Be Disappeared When After Bot Restart.",
         reply_markup=InlineKeyboardMarkup(buttons))
@@ -297,14 +297,38 @@ async def settings_query(bot, query):
   
   elif type=="deleteurl":
      await update_configs(user_id, 'db_uri', None)
+     back_to_database_btn = InlineKeyboardMarkup([[InlineKeyboardButton('🔙 Back', callback_data="settings#database")]]) # Corrected back button
      await query.message.edit_text(
         "Successfully Your Database URL Deleted",
-        reply_markup=InlineKeyboardMarkup(buttons))
+        reply_markup=back_to_database_btn)
       
   elif type=="filters_menu": # Corrected entry point for filters
      await query.message.edit_text(
         "<b><u>Custom Filters</u></b>\n\nConfigure The Type Of Messages Which You Want Forward",
         reply_markup=await filters_menu_buttons(user_id))
+  
+  elif type=="pinning": # New pinning settings menu
+     buttons = []
+     data = await get_configs(user_id)
+     pinning_enabled = data.get('pinning', False) # Default to False if not set
+     buttons.append([
+         InlineKeyboardButton('✅ Enabled' if pinning_enabled else '❌ Disabled', callback_data=f'settings#toggle_pinning-{pinning_enabled}')
+     ])
+     buttons.append([InlineKeyboardButton('🔙 Back', callback_data="settings#main")])
+     await query.message.edit_text(
+        "<b><u>Pinning Settings</u></b>\n\nEnable or disable pinning of forwarded messages in the target channel if they were pinned in the source channel.",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type.startswith("toggle_pinning"): # Toggle pinning state
+     current_state = type.split('-')[1] == 'True' # Convert string 'True'/'False' to boolean
+     new_state = not current_state
+     await update_configs(user_id, 'pinning', new_state)
+     # Re-render the pinning menu with the new state
+     buttons = [[InlineKeyboardButton('✅ Enabled' if new_state else '❌ Disabled', callback_data=f'settings#toggle_pinning-{new_state}')],
+                [InlineKeyboardButton('🔙 Back', callback_data="settings#main")]]
+     await query.message.edit_text(
+        "<b><u>Pinning Settings</u></b>\n\nEnable or disable pinning of forwarded messages in the target channel if they were pinned in the source channel.",
+        reply_markup=InlineKeyboardMarkup(buttons))
    
   elif type.startswith("updatefilter"):
      i, key, value = type.split('-')
@@ -419,14 +443,16 @@ def main_buttons():
        ],[
        InlineKeyboardButton('✏️ Caption', # Caption is now a top-level item
                     callback_data=f'settings#caption'),
-       InlineKeyboardButton('🕵‍♀ Filters', # Filters menu
-                    callback_data=f'settings#filters_menu') 
+       InlineKeyboardButton('📌 Pinning', # New Pinning button
+                    callback_data=f'settings#pinning')
        ],[
+       InlineKeyboardButton('🕵‍♀ Filters', # Filters menu
+                    callback_data=f'settings#filters_menu'),
        InlineKeyboardButton('⚙️ Extra Settings', # Extra Settings menu
-                    callback_data='settings#extra_settings_menu'),
-       InlineKeyboardButton('🔙 Back', callback_data='back') # Back button on the same line
+                    callback_data='settings#extra_settings_menu')
        ],[      
-       ]] # Empty line for consistency, or remove if not needed
+       InlineKeyboardButton('🔙 Back', callback_data='back') # Single back button on its own line
+       ]]
   return InlineKeyboardMarkup(buttons)
 
 def size_limit(limit):
