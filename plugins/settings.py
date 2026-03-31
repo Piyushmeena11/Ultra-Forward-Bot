@@ -19,6 +19,143 @@ CLIENT = CLIENT()
 
 
 from .caption_settings import handle_caption_query # New import for caption features
+
+# --- Helper Functions (Moved to top for proper definition order) ---
+def main_buttons():
+  # New main menu layout as requested
+  buttons = [[
+       InlineKeyboardButton('🤖 Bots',
+                    callback_data=f'settings#bots'),
+       InlineKeyboardButton('🔥 Channels',
+                    callback_data=f'settings#channels')
+       ],[
+       InlineKeyboardButton('✏️ Caption', # Caption is now a top-level item
+                    callback_data=f'settings#caption'),
+       InlineKeyboardButton('📌 Pinning', # New Pinning button
+                    callback_data=f'settings#pinning')
+       ],[
+       InlineKeyboardButton('🕵‍♀ Filters', # Filters menu
+                    callback_data=f'settings#filters_menu'),
+       InlineKeyboardButton('⚙️ Extra Settings', # Extra Settings menu
+                    callback_data='settings#extra_settings_menu')
+       ],[      
+       InlineKeyboardButton('🔙 Back', callback_data='back') # Single back button on its own line
+       ]]
+  return InlineKeyboardMarkup(buttons)
+
+def size_limit(limit):
+   if str(limit) == "None":
+      return None, ""
+   elif str(limit) == "True":
+      return True, "more than"
+   else:
+      return False, "less than"
+
+def extract_btn(datas):
+    i = 0
+    btn = []
+    if datas:
+       for data in datas:
+         if i >= 5:
+            i = 0
+         if i == 0:
+            btn.append([InlineKeyboardButton(data, f'settings#alert_{data}')])
+            i += 1
+            continue
+         elif i > 0:
+            btn[-1].append(InlineKeyboardButton(data, f'settings#alert_{data}'))
+            i += 1
+    return btn 
+
+def size_button(size):
+  buttons = [[
+       InlineKeyboardButton('+',
+                    callback_data=f'settings#update_limit-True-{size}'),
+       InlineKeyboardButton('=',
+                    callback_data=f'settings#update_limit-None-{size}'),
+       InlineKeyboardButton('-',
+                    callback_data=f'settings#update_limit-False-{size}')
+       ],[
+       InlineKeyboardButton('+1',
+                    callback_data=f'settings#update_size-{size + 1}'),
+       InlineKeyboardButton('-1',
+                    callback_data=f'settings#update_size_-{size - 1}')
+       ],[
+       InlineKeyboardButton('+5',
+                    callback_data=f'settings#update_size-{size + 5}'),
+       InlineKeyboardButton('-5',
+                    callback_data=f'settings#update_size_-{size - 5}')
+       ],[
+       InlineKeyboardButton('+10',
+                    callback_data=f'settings#update_size-{size + 10}'),
+       InlineKeyboardButton('-10',
+                    callback_data=f'settings#update_size_-{size - 10}')
+       ],[
+       InlineKeyboardButton('+50',
+                    callback_data=f'settings#update_size-{size + 50}'),
+       InlineKeyboardButton('-50',
+                    callback_data=f'settings#update_size_-{size - 50}')
+       ],[
+       InlineKeyboardButton('+100',
+                    callback_data=f'settings#update_size-{size + 100}'),
+       InlineKeyboardButton('-100',
+                    callback_data=f'settings#update_size_-{size - 100}')
+       ],[
+       InlineKeyboardButton('↩ Back',
+                    callback_data="settings#filters_menu")
+     ]]
+  return InlineKeyboardMarkup(buttons)
+       
+async def filters_menu_buttons(user_id):
+  filter_configs = await get_configs(user_id)
+  filters = filter_configs['filters']
+  buttons = [[
+       InlineKeyboardButton('--- Message Types ---', callback_data='settings#alert_Message_Types')
+       ],[
+       InlineKeyboardButton('🎧 Audios', callback_data=f'settings_#updatefilter-audio-{filters["audio"]}'),
+       InlineKeyboardButton('✅' if filters['audio'] else '❌', callback_data=f'settings#updatefilter-audio-{filters["audio"]}')
+       ],[
+       InlineKeyboardButton('🎤 Voices', callback_data=f'settings_#updatefilter-voice-{filters["voice"]}'),
+       InlineKeyboardButton('✅' if filters['voice'] else '❌', callback_data=f'settings#updatefilter-voice-{filters["voice"]}')
+       ],[
+       InlineKeyboardButton('🎭 Animations', callback_data=f'settings_#updatefilter-animation-{filters["animation"]}'),
+       InlineKeyboardButton('✅' if filters['animation'] else '❌', callback_data=f'settings#updatefilter-animation-{filters["animation"]}')
+       ],[
+       InlineKeyboardButton('📁 Documents', callback_data=f'settings_#updatefilter-document-{filters["document"]}'),
+       InlineKeyboardButton('✅' if filters['document'] else '❌', callback_data=f'settings#updatefilter-document-{filters["document"]}')
+       ],[
+       InlineKeyboardButton('🎞️ Videos', callback_data=f'settings_#updatefilter-video-{filters["video"]}'),
+       InlineKeyboardButton('✅' if filters['video'] else '❌', callback_data=f'settings#updatefilter-video-{filters["video"]}')
+       ],[
+       InlineKeyboardButton('📷 Photos', callback_data=f'settings_#updatefilter-photo-{filters["photo"]}'),
+       InlineKeyboardButton('✅' if filters['photo'] else '❌', callback_data=f'settings#updatefilter-photo-{filters["photo"]}')
+       ],[
+       InlineKeyboardButton('🃏 Stickers', callback_data=f'settings_#updatefilter-sticker-{filters["sticker"]}'),
+       InlineKeyboardButton('✅' if filters['sticker'] else '❌', callback_data=f'settings#updatefilter-sticker-{filters["sticker"]}')
+       ],[
+       InlineKeyboardButton('📊 Poll', callback_data=f'settings_#updatefilter-poll-{filters["poll"]}'),
+       InlineKeyboardButton('✅' if filters['poll'] else '❌', callback_data=f'settings#updatefilter-poll-{filters["poll"]}')
+       ],[
+       InlineKeyboardButton('🔒 Secure Message', callback_data=f'settings_#updatefilter-protect-{filter_configs["protect"]}'),
+       InlineKeyboardButton('✅' if filter_configs['protect'] else '❌', callback_data=f'settings#updatefilter-protect-{filter_configs["protect"]}')
+       ],[
+       InlineKeyboardButton('🔙 Back', callback_data="settings#main")
+       ]]
+  return InlineKeyboardMarkup(buttons) 
+   
+def extra_settings_menu_buttons():
+  # Extra settings menu with only MongoDB and Button as requested
+  buttons = [[
+       InlineKeyboardButton('🗃 MongoDB', callback_data=f'settings#database')
+       ],[
+       InlineKeyboardButton('🏓 Button', callback_data=f'settings#button')
+       ],[
+       InlineKeyboardButton('🔙 Back', callback_data="settings#main")
+       ]]
+  return InlineKeyboardMarkup(buttons)
+
+# --- End Helper Functions ---
+
 @Client.on_message(filters.private & filters.command(['settings']))
 async def settings(client, message):
     text="<b>Change Your Settings As Your Wish</b>"
@@ -151,18 +288,18 @@ async def settings_query(bot, query):
         "Successfully Updated",
         reply_markup=back_to_channels_btn)
 
-  # Route all caption-related callbacks to the new caption_settings.py
-  elif type == "caption": # Entry point from main_buttons
+  # Route all caption-related callbacks to the new caption_settings.py handler
+  elif type == "caption": # Main entry point for caption settings
       await handle_caption_query(bot, query, user_id, "caption")
-  elif type.startswith("header") or type.startswith("footer") or \
-       type.startswith("prefix") or type.startswith("suffix") or \
-       type.startswith("delete_before") or type.startswith("delete_after") or \
-       type.startswith("delete_words") or type.startswith("replace_words") or \
-       type.startswith("link_remove") or type.startswith("link_replace") or \
-       type.startswith("username_remove") or type.startswith("username_replace") or \
-       type.startswith("caption_length") or type.startswith("renew_caption") or \
-       type.startswith("reset_caption") or type.startswith("see_caption") or \
-       type.startswith("toggle_caption_enabled"):
+  elif type.startswith("caption_header_menu") or type.startswith("caption_footer_menu") or \
+       type.startswith("caption_prefix_menu") or type.startswith("caption_suffix_menu") or \
+       type.startswith("caption_delete_before_menu") or type.startswith("caption_delete_after_menu") or \
+       type.startswith("caption_delete_words_menu") or type.startswith("caption_replace_words_menu") or \
+       type.startswith("caption_link_remove_toggle") or type.startswith("caption_link_replace_menu") or \
+       type.startswith("caption_username_remove_toggle") or type.startswith("caption_username_replace_menu") or \
+       type.startswith("caption_length_menu") or type.startswith("caption_renew") or \
+       type.startswith("caption_reset") or type.startswith("caption_see") or \
+       type.startswith("toggle_caption_enabled"): # All new caption-related callbacks
       await handle_caption_query(bot, query, user_id, type)
 
   elif type=="button":
