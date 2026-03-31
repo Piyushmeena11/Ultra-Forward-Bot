@@ -43,7 +43,7 @@ async def pub_(bot, message):
     if not sts.verify():
       await message.answer("Your Are Clicking On My Old Button", show_alert=True)
       return await message.message.delete()
-    i = sts.get(full=True) # This line is fine, but the next one needs to be updated
+    i = sts.get(full=True)
     if i.TO in temp.IS_FRWD_CHAT:
       return await message.answer("In Target Chat A Task Is Progressing. Please Wait Until Task Complete", show_alert=True)
     m = await msg_edit(message.message, "Verifying Your Data's, Please Wait.")
@@ -67,7 +67,7 @@ async def pub_(bot, message):
        await msg_edit(m, f"Please Make Your [UserBot / Bot](t.me/{_bot['username']}) Admin In Target Channel With Full Permissions", retry_btn(frwd_id), True)
        return await stop(client, user)
     temp.forwardings += 1
-    await db.add_frwd(user) # This line is fine
+    await db.add_frwd(user)
     await send(client, user, "🩷 Forwarding Started")
     sts.add(time=True)
     sleep = 1 if _bot['is_bot'] else 10
@@ -112,8 +112,8 @@ async def pub_(bot, message):
                       await asyncio.sleep(10)
                       MSG = []
                 else:
-                   new_caption = custom_caption(message, caption) # This line is fine
-                   details = {"msg_id": message.id, "media": media(message), "caption": new_caption, 'button': button, "protect": protect, "is_pinned": message.pinned} # Added is_pinned
+                   new_caption = custom_caption(message, caption, caption_enabled) # Pass caption_enabled
+                   details = {"msg_id": message.id, "media": media(message), "caption": new_caption, 'button': button, "protect": protect, "is_pinned": message.pinned}
                    await copy(client, details, m, sts)
                    sts.add('total_files')
                    await asyncio.sleep(sleep) 
@@ -126,23 +126,24 @@ async def pub_(bot, message):
         await edit(m, 'Completed', "completed", sts) 
         await stop(client, user)
             
-async def copy(bot, msg_details, m, sts): # Renamed msg to msg_details for clarity
+async def copy(bot, msg_details, m, sts):
    try:                                  
-     if msg.get("media") and msg.get("caption"):
-        await bot.send_cached_media(
+     sent_msg = None # Initialize sent_msg
+     if msg_details.get("media") and msg_details.get("caption"):
+        sent_msg = await bot.send_cached_media(
               chat_id=sts.get('TO'),
-              file_id=msg.get("media"),
-              caption=msg.get("caption"),
-              reply_markup=msg.get('button'),
-              protect_content=msg.get("protect")) # This line is fine
+              file_id=msg_details.get("media"),
+              caption=msg_details.get("caption"),
+              reply_markup=msg_details.get('button'),
+              protect_content=msg_details.get("protect"))
      else:
-        await bot.copy_message(
+        sent_msg = await bot.copy_message(
               chat_id=sts.get('TO'),
               from_chat_id=sts.get('FROM'),    
-              caption=msg.get("caption"),
-              message_id=msg.get("msg_id"),
-              reply_markup=msg.get('button'),
-              protect_content=msg.get("protect")) # This line is fine
+              caption=msg_details.get("caption"),
+              message_id=msg_details.get("msg_id"),
+              reply_markup=msg_details.get('button'),
+              protect_content=msg_details.get("protect"))
      
      # Pinning logic
      if sts.get('pinning') and msg_details.get("is_pinned"): # Check if pinning is enabled and source message was pinned
@@ -152,7 +153,7 @@ async def copy(bot, msg_details, m, sts): # Renamed msg to msg_details for clari
              logger.warning(f"Failed to pin message {sent_msg.id} in {sts.get('TO')}: {pin_e}")
    except FloodWait as e:
      await edit(m, 'Progressing', e.value, sts)
-     await asyncio.sleep(e.value)
+     await asyncio.sleep(e.value + 1) # Add a small buffer
      await edit(m, 'Progressing', 10, sts)
      await copy(bot, msg, m, sts)
    except Exception as e:
@@ -248,7 +249,7 @@ async def send(bot, user, text):
    except:
       pass 
      
-def custom_caption(msg, caption):
+def custom_caption(msg, caption, caption_enabled):
   if msg.media:
     if (msg.video or msg.document or msg.audio or msg.photo):
       media = getattr(msg, msg.media.value, None)
@@ -257,7 +258,10 @@ def custom_caption(msg, caption):
         file_size = getattr(media, 'file_size', '')
         fcaption = getattr(msg, 'caption', '')
         if fcaption:
-          fcaption = fcaption.html
+          fcaption = fcaption.html # Original caption
+        
+        if caption_enabled:
+            # This is where the new complex caption logic will go
         if caption:
           return caption.format(filename=file_name, size=get_size(file_size), caption=fcaption)
         return fcaption
