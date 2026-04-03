@@ -36,7 +36,6 @@ SESSION_STRING_SIZE = 351
 
 async def start_clone_bot(FwdBot, data=None):
    await FwdBot.start()
-   #
    async def iter_messages(
       self, 
       chat_id: Union[int, str], 
@@ -77,7 +76,7 @@ async def start_clone_bot(FwdBot, data=None):
             for message in messages:
                 yield message
                 current += 1
-   #
+                
    FwdBot.iter_messages = iter_messages
    return FwdBot
 
