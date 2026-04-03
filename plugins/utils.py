@@ -55,32 +55,9 @@ class STS:
         button = parse_buttons(configs['button'] if configs['button'] else '')
         if configs['file_size'] != 0:
             size = [configs['file_size'], configs['size_limit']]
+        return bot, configs, configs['forward_tag'], {'chat_id': k.FROM, 'limit': k.limit, 'offset': k.skip, 'filters': filters,
+                'keywords': configs['keywords'], 'media_size': size, 'extensions': configs['extension'], 'skip_duplicate': duplicate, 'pin_message': configs['pin_message']}, configs['protect'], button
         
-        # Collect all caption-related configs into a single dictionary
-        caption_configs = {
-            'caption_enabled': configs.get('caption_enabled', False),
-            'caption_header': configs.get('caption_header'),
-            'caption_footer': configs.get('caption_footer'),
-            'caption_prefix': configs.get('caption_prefix'), # Corrected key
-            'caption_suffix': configs.get('caption_suffix'), # Corrected key
-            'caption_delete_before_word': configs.get('caption_delete_before_word'),
-            'caption_delete_after_word': configs.get('caption_delete_after_word'),
-            'caption_delete_words_list': configs.get('caption_delete_words_list'),
-            'caption_replace_words_map': configs.get('caption_replace_words_map'),
-            'caption_link_remove': configs.get('caption_link_remove', False),
-            'caption_link_replace_pair': configs.get('caption_link_replace_pair'),
-            'caption_username_remove': configs.get('caption_username_remove', False),
-            'caption_username_replace_pair': configs.get('caption_username_replace_pair'),
-            'caption_length_limit': configs.get('caption_length_limit')
-        }
-        self.data[self.id]['caption_configs'] = caption_configs # Store for easy access in custom_caption
-        
-        return bot, configs['caption'], configs['forward_tag'], {'chat_id': k.FROM, 'limit': k.limit, 'offset': k.skip, 'filters': filters,
-                'keywords': configs['keywords'], 'media_size': size, 'extensions': configs['extension'], 'skip_duplicate': duplicate}, \
-                configs['protect'], button, configs.get('pinning', False), caption_configs # Pass the new caption_configs dict
-
-    def get_all_caption_configs(self):
-        return self.data[self.id].get('caption_configs', {})
 
 def get_readable_time(seconds: int) -> str:
     result = ""
