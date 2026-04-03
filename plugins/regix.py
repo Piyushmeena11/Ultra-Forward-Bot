@@ -63,16 +63,22 @@ async def pub_(bot, message):
       return await m.edit(f"Startup Error: {e} | Type: {type(e)}")
       
     await msg_edit(m, "Processing...")
-    try: 
-       await client.get_messages(sts.get("FROM"), sts.get("limit"))
-    except:
-       await msg_edit(m, f"Source Chat May Be A Private Channel / Group. Use Userbot (User Must Be Member Over There) Or  If Make Your [Bot](t.me/{_bot['username']}) An Admin Over There", retry_btn(frwd_id), True)
+    # Force peer resolution so Pyrogram caches the group internally
+    # Without this, get_messages returns all-empty for private groups
+    try:
+       await client.get_chat(sts.get("FROM"))
+    except Exception as e:
+       await msg_edit(m, f"Source Chat Error: {e}\n\nMake Your Bot/Userbot An Admin In The Source Chat", retry_btn(frwd_id), True)
        return await stop(client, user)
+    try:
+       await client.get_chat(sts.get("TO"))
+    except Exception:
+       pass  # TO may be accessible even if get_chat fails
     try:
        k = await client.send_message(i.TO, "Testing", reply_to_message_id=sts.get('to_topic'))
        await k.delete()
-    except:
-       await msg_edit(m, f"Please Make Your [UserBot / Bot](t.me/{_bot['username']}) Admin In Target Channel With Full Permissions", retry_btn(frwd_id), True)
+    except Exception as e:
+       await msg_edit(m, f"Target Chat Error: {e}\n\nMake Your [Bot/Userbot](t.me/{_bot['username']}) Admin In Target Chat With Full Permissions", retry_btn(frwd_id), True)
        return await stop(client, user)
     temp.forwardings += 1
     await db.add_frwd(user)
@@ -139,6 +145,8 @@ async def pub_(bot, message):
             return await stop(client, user)
         if i.TO in temp.IS_FRWD_CHAT:
             temp.IS_FRWD_CHAT.remove(i.TO)
+        # Set total = fetched so percentage shows 100% on completion
+        sts.data[sts.id]['total'] = sts.get('fetched')
         await send(client, user, "🎉 Forwarding Completed")
         await edit(m, 'Completed', "completed", sts) 
         await stop(client, user)
@@ -221,13 +229,20 @@ async def msg_edit(msg, text, button=None, wait=None):
 async def edit(msg, title, status, sts):
    i = sts.get(full=True)
    status = 'Forwarding' if status == 10 else f"Sleeping {status} s" if str(status).isnumeric() else status
-   percentage = "{:.0f}".format(float(i.fetched)*100/float(i.total))
+   # Dynamically update total if iteration is still ongoing (sentinel = 999999)
+   total = max(i.fetched + 1, i.total) if i.total == 999999 else i.total
+   if total == 999999:
+       total = i.fetched + 1  # avoid div-by-zero, percentage will show roughly
+   try:
+       percentage = "{:.0f}".format(float(i.fetched)*100/float(total))
+   except ZeroDivisionError:
+       percentage = "0"
    
    now = time.time()
    diff = int(now - i.start)
    speed = sts.divide(i.fetched, diff)
    elapsed_time = round(diff) * 1000
-   time_to_completion = round(sts.divide(i.total - i.fetched, int(speed))) * 1000
+   time_to_completion = round(sts.divide(total - i.fetched, int(speed))) * 1000
    estimated_total_time = elapsed_time + time_to_completion  
    progress = "▰{0}{1}".format(
        ''.join(["▰" for i in range(math.floor(int(percentage) / 10))]),
