@@ -64,11 +64,15 @@ async def pub_(bot, message):
       
     await msg_edit(m, "Processing...")
     # Force peer resolution so Pyrogram caches the group internally
-    # Without this, get_messages returns all-empty for private groups
     try:
-       await client.get_chat(sts.get("FROM"))
+       source_chat = await client.get_chat(sts.get("FROM"))
     except Exception as e:
        await msg_edit(m, f"Source Chat Error: {e}\n\nMake Your Bot/Userbot An Admin In The Source Chat", retry_btn(frwd_id), True)
+       return await stop(client, user)
+    # Bots cannot read group history — only userbots can
+    from pyrogram import enums as _enums
+    if _bot.get('is_bot') and source_chat.type in [_enums.ChatType.GROUP, _enums.ChatType.SUPERGROUP]:
+       await msg_edit(m, "⚠️ **Bot Cannot Read Group History!**\n\nTelegram does not allow bots to fetch message history from groups.\n\n**Solution:** Add a **Userbot** (user account session) in /settings and use that instead of a bot for group-to-group forwarding.", retry_btn(frwd_id), True)
        return await stop(client, user)
     try:
        await client.get_chat(sts.get("TO"))
