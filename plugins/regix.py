@@ -112,8 +112,9 @@ async def pub_(bot, message):
                       await asyncio.sleep(10)
                       MSG = []
                 else:
-                   new_caption = custom_caption(message, caption)
-                   details = {"msg_id": message.id, "media": media(message), "caption": new_caption, 'button': button, "protect": protect}
+                   data = caption # the configs dict
+                   new_caption = custom_caption(message, data)
+                   details = {"msg_id": message.id, "media": media(message), "caption": new_caption, 'button': button, "protect": protect, "pin_message": data.get("pin_message", False)}
                    await copy(client, details, m, sts)
                    sts.add('total_files')
                    await asyncio.sleep(sleep) 
@@ -129,20 +130,26 @@ async def pub_(bot, message):
 async def copy(bot, msg, m, sts):
    try:                                  
      if msg.get("media") and msg.get("caption"):
-        await bot.send_cached_media(
+        k = await bot.send_cached_media(
               chat_id=sts.get('TO'),
               file_id=msg.get("media"),
               caption=msg.get("caption"),
               reply_markup=msg.get('button'),
               protect_content=msg.get("protect"))
      else:
-        await bot.copy_message(
+        k = await bot.copy_message(
               chat_id=sts.get('TO'),
               from_chat_id=sts.get('FROM'),    
               caption=msg.get("caption"),
               message_id=msg.get("msg_id"),
               reply_markup=msg.get('button'),
               protect_content=msg.get("protect"))
+              
+     if msg.get("pin_message"):
+         try:
+             await k.pin(both_sides=True)
+         except Exception:
+             pass
    except FloodWait as e:
      await edit(m, 'Progressing', e.value, sts)
      await asyncio.sleep(e.value)
