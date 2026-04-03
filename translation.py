@@ -68,8 +68,8 @@ class Translation(object):
 <b>🔃 Forwardings :</b> <code>{}</code>
 """
   
-  FROM_MSG = "<b><u>Set Source Chat</></>\n\nForward The Last Message Or Last Message Link Of Source Chat.\n/cancel - To Cancel This Process"
-  TO_MSG = "<b><u>Choose Target Chat</u></b>\n\nChoose Your Target Chat From The Given Buttons.\n/cancel - To Cancel This Process"
+  FROM_MSG = "<b><u>Set Source Chat</></>\n\nForward The Last Message Or Send The Last Message Link Of Source Chat.\n(If source is a Group Topic, you MUST send a link to a message inside that topic)\n/cancel - To Cancel This Process"
+  TO_MSG = "<b><u>Choose Target Chat</u></b>\n\nChoose Your Target Chat / Group From The Given Buttons.\n/cancel - To Cancel This Process"
   SKIP_MSG = "<b><u>Set Message Skiping Number</u></b>\n\nSkip The Message As Much As You Enter The Number And The Rest Of The Message Will Be Forwarded\nDefault Skip Number = <code>0</code>\n<code>eg: You Enter 0 = 0 Message Skiped\nYou Enter 5 = 5 Message Skiped</code>\n/cancel - To Cancel This Process"
   CANCEL = "Process Cancelled Succefully !"
   BOT_DETAILS = "<b><u>📄 Bot Details</u></b>\n\n<b>➣ Name :</b> <code>{}</code>\n<b>➣ Bot ID :</b> <code>{}</code>\n<b>➣ Username :</b> @{}"
@@ -129,11 +129,11 @@ class Translation(object):
 Before Forwarding The Messages Click The Yes Button Only After Checking The Following
 
 <b>★ Your Bot :</b> [{botname}](t.me/{botuname})
-<b>★ From Channel :</b> <code>{from_chat}<>
-<b>★ To Channel :</b> <code>{to_chat}</code>
+<b>★ From Chat/Topic :</b> <code>{from_chat}</code>
+<b>★ To Chat/Topic :</b> <code>{to_chat}</code>
 <b>★ Skip Messages :</b> <code>{skip}</code>
 
-<i>° [{botname}](t.me/{botuname}) Must Be Admin In <b>Target Chat</b></i> (<code>{to_chat}</code>)
+<i>° [{botname}](t.me/{botuname}) Must Be Admin In <b>Target Chat</b></i>
 <i>° If The <b>Source Chat</b> Is Private Your Userbot Must Be Member Or Your Bot Must Be Admin In There Also</i>
 
 <b>If The Above Is Checked Then The Yes Button Can Be Clicked</b>"""
