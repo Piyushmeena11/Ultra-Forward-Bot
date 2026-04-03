@@ -94,6 +94,20 @@ class Database:
     async def get_configs(self, id):
         default = {
             'caption': None,
+            'header': None,
+            'footer': None,
+            'prefix': None,
+            'suffix': None,
+            'delete_before': None,
+            'delete_after': None,
+            'delete_words': None,
+            'replace_words': None,
+            'link_remove': False,
+            'link_replace': None,
+            'remove_username': False,
+            'username_replace': None,
+            'caption_length': None,
+            'caption_enabled': True,
             'duplicate': True,
             'forward_tag': False,
             'file_size': 0,
@@ -118,7 +132,7 @@ class Database:
         user = await self.col.find_one({'id':int(id)})
         if user:
             return user.get('configs', default)
-        return default 
+        return default
        
     async def add_bot(self, datas):
        if not await self.is_bot_exist(datas['user_id']):
