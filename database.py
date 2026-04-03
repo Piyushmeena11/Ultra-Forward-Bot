@@ -175,8 +175,9 @@ class Database:
      
     async def get_filters(self, user_id):
        filters = []
-       filter = (await self.get_configs(user_id))['filters']
-       for k, v in filter.items():
+       configs = await self.get_configs(user_id)
+       filter_dict = configs.get('filters', {}) if configs else {}
+       for k, v in filter_dict.items():
           if v == False:
             filters.append(str(k))
        return filters
