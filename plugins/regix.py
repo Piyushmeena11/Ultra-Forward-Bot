@@ -91,6 +91,11 @@ async def pub_(bot, message):
                 if pling %20 == 0: 
                    await edit(m, 'Progressing', 10, sts)
                 pling += 1
+                
+                from_topic = sts.get('from_topic')
+                if from_topic and getattr(message, 'message_thread_id', getattr(message, 'reply_to_message_id', None)) != from_topic:
+                    continue
+                
                 sts.add('fetched')
                 if message == "DUPLICATE":
                    sts.add('duplicate')
@@ -128,13 +133,15 @@ async def pub_(bot, message):
         await stop(client, user)
             
 async def copy(bot, msg, m, sts):
-   try:                                  
+   try:
+     to_topic = sts.get('to_topic')                                  
      if msg.get("media") and msg.get("caption"):
         k = await bot.send_cached_media(
               chat_id=sts.get('TO'),
               file_id=msg.get("media"),
               caption=msg.get("caption"),
               reply_markup=msg.get('button'),
+              reply_to_message_id=to_topic,
               protect_content=msg.get("protect"))
      else:
         k = await bot.copy_message(
@@ -143,6 +150,7 @@ async def copy(bot, msg, m, sts):
               caption=msg.get("caption"),
               message_id=msg.get("msg_id"),
               reply_markup=msg.get('button'),
+              reply_to_message_id=to_topic,
               protect_content=msg.get("protect"))
               
      if msg.get("pin_message"):
@@ -160,12 +168,15 @@ async def copy(bot, msg, m, sts):
      sts.add('deleted')
         
 async def forward(bot, msg, m, sts, protect):
-   try:                             
-     await bot.forward_messages(
-           chat_id=sts.get('TO'),
-           from_chat_id=sts.get('FROM'), 
-           protect_content=protect,
-           message_ids=msg)
+   try:
+     to_topic = sts.get('to_topic')                            
+     for msg_id in msg:
+         await bot.forward_messages(
+               chat_id=sts.get('TO'),
+               from_chat_id=sts.get('FROM'), 
+               protect_content=protect,
+               reply_to_message_id=to_topic,
+               message_ids=msg_id)
    except FloodWait as e:
      await edit(m, 'Progressing', e.value, sts)
      await asyncio.sleep(e.value)
