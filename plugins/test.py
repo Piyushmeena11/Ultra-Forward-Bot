@@ -36,41 +36,63 @@ SESSION_STRING_SIZE = 351
 
 async def start_clone_bot(FwdBot, data=None):
    await FwdBot.start()
-   
+
+   me = await FwdBot.get_me()
+   is_bot = me.is_bot
+
    async def iter_messages(
-      self, 
-      chat_id, 
-      limit: int, 
+      self,
+      chat_id,
+      limit: int,
       offset: int = 0,
       from_topic: int = None,
       ) -> Optional[AsyncGenerator["types.Message", None]]:
         """
-        Iterate through a chat using get_chat_history.
-        limit = the last message ID from the source link (upper boundary).
-        offset = number of messages to skip from the top.
-        Iterates from newest to oldest, stopping at message ID 1.
+        Dual-mode message iterator:
+        - Userbots use get_chat_history (newest→oldest) — supports private groups natively
+        - Bots use get_messages with ID ranges — bots can't use GetHistory
+        limit = last message ID (upper boundary / total count for bots)
+        offset = number of messages to skip
         """
-        skipped = 0
-        offset_id = limit + 1  # Start just above the last known message ID
-        while True:
-            batch = []
-            async for msg in self.get_chat_history(chat_id, limit=200, offset_id=offset_id):
-                batch.append(msg)
-            if not batch:
-                return
-            for message in batch:
-                offset_id = message.id
-                if skipped < offset:
-                    skipped += 1
-                    continue
-                yield message
-            if len(batch) < 200:
-                return
-                
-
+        if not is_bot:
+            # USERBOT MODE: use get_chat_history, start from limit going backwards
+            skipped = 0
+            offset_id = limit + 1
+            while True:
+                batch = []
+                async for msg in self.get_chat_history(chat_id, limit=200, offset_id=offset_id):
+                    batch.append(msg)
+                if not batch:
+                    return
+                for message in batch:
+                    offset_id = message.id
+                    if skipped < offset:
+                        skipped += 1
+                        continue
+                    yield message
+                if len(batch) < 200:
+                    return
+        else:
+            # BOT MODE: bots can use search_messages (messages.Search) unlike GetHistory
+            # This returns only real existing messages, no empty ghosts
+            skipped = 0
+            offset_id = limit + 1
+            while True:
+                batch = await self.search_messages(chat_id, offset_id=offset_id, limit=200)
+                if not batch:
+                    return
+                for message in batch:
+                    offset_id = message.id
+                    if skipped < offset:
+                        skipped += 1
+                        continue
+                    yield message
+                if len(batch) < 200:
+                    return
 
    FwdBot.iter_messages = iter_messages
    return FwdBot
+
 
 
 
