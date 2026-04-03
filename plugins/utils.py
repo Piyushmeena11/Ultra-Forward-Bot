@@ -21,9 +21,10 @@ class STS:
     def verify(self):
         return self.data.get(self.id)
     
-    def store(self, From, to,  skip, limit):
+    def store(self, From, to,  skip, limit, from_topic=None, to_topic=None):
         self.data[self.id] = {"FROM": From, 'TO': to, 'total_files': 0, 'skip': skip, 'limit': limit,
-                      'fetched': skip, 'filtered': 0, 'deleted': 0, 'duplicate': 0, 'total': limit, 'start': 0}
+                      'fetched': skip, 'filtered': 0, 'deleted': 0, 'duplicate': 0, 'total': limit, 'start': 0,
+                      'from_topic': from_topic, 'to_topic': to_topic}
         self.get(full=True)
         return STS(self.id)
         
@@ -48,15 +49,15 @@ class STS:
         bot = await db.get_bot(user_id)
         k, filters = self, await db.get_filters(user_id)
         size, configs = None, await db.get_configs(user_id)
-        if configs['duplicate']:
-           duplicate = [configs['db_uri'], self.TO]
+        if configs.get('duplicate', False):
+           duplicate = [configs.get('db_uri', None), self.TO]
         else:
            duplicate = False
-        button = parse_buttons(configs['button'] if configs['button'] else '')
-        if configs['file_size'] != 0:
-            size = [configs['file_size'], configs['size_limit']]
-        return bot, configs, configs['forward_tag'], {'chat_id': k.FROM, 'limit': k.limit, 'offset': k.skip, 'filters': filters,
-                'keywords': configs['keywords'], 'media_size': size, 'extensions': configs['extension'], 'skip_duplicate': duplicate, 'pin_message': configs['pin_message']}, configs['protect'], button
+        button = parse_buttons(configs.get('button', ''))
+        if configs.get('file_size', 0) != 0:
+            size = [configs.get('file_size', 0), configs.get('size_limit', 0)]
+        return bot, configs, configs.get('forward_tag', False), {'chat_id': k.FROM, 'limit': k.limit, 'offset': k.skip, 'filters': filters,
+                'keywords': configs.get('keywords', []), 'media_size': size, 'extensions': configs.get('extension', []), 'skip_duplicate': duplicate, 'pin_message': configs.get('pin_message', False), 'from_topic': getattr(k, 'from_topic', None), 'to_topic': getattr(k, 'to_topic', None)}, configs.get('protect', False), button
         
 
 def get_readable_time(seconds: int) -> str:
