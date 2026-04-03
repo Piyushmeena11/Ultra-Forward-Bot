@@ -207,18 +207,18 @@ async def get_configs(user_id):
 
 async def update_configs(user_id, key, value):
   current = await db.get_configs(user_id)
-  if key in ['caption', 'duplicate', 'db_uri', 'forward_tag', 'protect', 'file_size', 'size_limit', 'extension', 'keywords', 'button', 'pinning',
-              # New caption settings keys
-              'caption_enabled', 'caption_header', 'caption_footer', 'caption_prefix', 'caption_suffix',
-              'caption_delete_before_word', 'caption_delete_after_word', 'caption_delete_words_list', 'caption_replace_words_map',
-              'caption_link_remove', 'caption_link_replace_pair', 'caption_username_remove', 'caption_username_replace_pair', # Corrected keys
-              'caption_length_limit', 'caption_delete_before_word', 'caption_delete_after_word',
-              'caption_delete_words_list', 'caption_replace_words_map'
-              ]:
+  valid_keys = [
+      'caption', 'header', 'footer', 'prefix', 'suffix',
+      'delete_before', 'delete_after', 'delete_words', 'replace_words',
+      'link_remove', 'link_replace', 'remove_username', 'username_replace',
+      'caption_length', 'caption_enabled', 'duplicate', 'db_uri',
+      'forward_tag', 'protect', 'file_size', 'size_limit', 'extension',
+      'keywords', 'button'
+  ]
+  if key in valid_keys:
      current[key] = value
   else: 
      current['filters'][key] = value
- # temp.CONFIGS[user_id] = value
   await db.update_configs(user_id, current)
     
 
