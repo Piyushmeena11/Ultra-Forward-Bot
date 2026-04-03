@@ -214,11 +214,7 @@ async def settings_query(bot, query):
              await update_configs(user_id, db_key, val)
              await input_msg.delete()
              
-             display_val = val
-             if type in ['delete_words', 'replace_words']:
-                 display_val = str([w.strip() for w in val.split(',')])
-             
-             success_text = f"〰️ SUCCESSFULLY UPDATED\n〰️ MY UPDATED {type.replace('_', ' ').upper()} :\n\n<code>{display_val}</code>"
+             success_text = f"〰️ SUCCESSFULLY UPDATED"
              await text_msg.edit_text(success_text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('❌ REMOVE', callback_data=f'settings#rem_{type}'), InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
 
      except asyncio.exceptions.TimeoutError:
@@ -272,6 +268,27 @@ async def settings_query(bot, query):
       await update_configs(user_id, "caption_enabled", True)
       await query.message.edit_text("〰️ SUCCESSFULLY RESET", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
 
+  elif type == "pinning":
+      data = await get_configs(user_id)
+      status = bool(data.get('pin_message'))
+      
+      buttons = [
+         [InlineKeyboardButton('📌 PIN MESSAGES', callback_data='settings#pin_message'), InlineKeyboardButton('✅' if status else '❌', callback_data='settings#pin_message')],
+         [InlineKeyboardButton('« BACK', callback_data='settings#main')]
+      ]
+      await query.message.edit_text("```\n╔════════【 PIN 】═════════\n║\n║ 〰️ PREMIUM FEATURE :\n║\n║ 📌 FORWARD WITH 📌 PINNING. 📌\n║\n║ 〰️ IF YOU WANT TO PIN MESSAGE IN\n║     TARGET CHANNEL SAME AS IT PINNING \n║     IN SOURCE CHANNEL.\n╚═════════════════════════════\n```", reply_markup=InlineKeyboardMarkup(buttons))
+      
+  elif type == "pin_message":
+      data = await get_configs(user_id)
+      status = bool(data.get('pin_message'))
+      await update_configs(user_id, 'pin_message', not status)
+      
+      buttons = [
+         [InlineKeyboardButton('📌 PIN MESSAGES', callback_data='settings#pin_message'), InlineKeyboardButton('❌' if status else '✅', callback_data='settings#pin_message')],
+         [InlineKeyboardButton('« BACK', callback_data='settings#main')]
+      ]
+      await query.message.edit_text("```\n╔════════【 PIN 】═════════\n║\n║ 〰️ PREMIUM FEATURE :\n║\n║ 📌 FORWARD WITH 📌 PINNING. 📌\n║\n║ 〰️ IF YOU WANT TO PIN MESSAGE IN\n║     TARGET CHANNEL SAME AS IT PINNING \n║     IN SOURCE CHANNEL.\n╚═════════════════════════════\n```", reply_markup=InlineKeyboardMarkup(buttons))
+      
   elif type=="seecaption":   
      data = await get_configs(user_id)
      buttons = [[InlineKeyboardButton('« BACK', callback_data="settings#caption")]]
