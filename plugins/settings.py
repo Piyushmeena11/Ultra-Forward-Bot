@@ -4,251 +4,651 @@
 # Backup Channel @JishuBotz
 # Developer @JishuDeveloper
 
+
+
+
 import asyncio 
 from database import db
 from config import Config
 from translation import Translation
 from pyrogram import Client, filters
-from .test import CLIENT, get_configs, update_configs, parse_buttons
+from .test import get_configs, update_configs, CLIENT, parse_buttons
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 CLIENT = CLIENT()
 
-from .caption_settings import handle_caption_query
 
-# --- Main Menu Buttons ---
+
+@Client.on_message(filters.private & filters.command(['settings']))
+async def settings(client, message):
+    text="<b>Change Your Settings As Your Wish</b>"
+    await message.reply_text(
+        text=text,
+        reply_markup=main_buttons(),
+        quote=True
+    )
+    
+
+
+    
+@Client.on_callback_query(filters.regex(r'^settings'))
+async def settings_query(bot, query):
+  user_id = query.from_user.id
+  i, type = query.data.split("#")
+  buttons = [[InlineKeyboardButton('🔙 Back', callback_data="settings#main")]]
+  
+  if type=="main":
+     await query.message.edit_text(
+       "<b>Change Your Settings As Your Wish</b>",
+       reply_markup=main_buttons())
+       
+  elif type=="bots":
+     buttons = [] 
+     _bot = await db.get_bot(user_id)
+     if _bot is not None:
+        buttons.append([InlineKeyboardButton(_bot['name'],
+                         callback_data=f"settings#editbot")])
+     else:
+        buttons.append([InlineKeyboardButton('✚ Add Bot ✚', 
+                         callback_data="settings#addbot")])
+        buttons.append([InlineKeyboardButton('✚ Add User Bot ✚', 
+                         callback_data="settings#adduserbot")])
+     buttons.append([InlineKeyboardButton('🔙 Back', 
+                      callback_data="settings#main")])
+     await query.message.edit_text(
+       "<b><u>My Bots</u></b>\n\nYou Can Manage Your Bots In Here",
+       reply_markup=InlineKeyboardMarkup(buttons))
+  
+  elif type=="addbot":
+     await query.message.delete()
+     bot = await CLIENT.add_bot(bot, query)
+     if bot != True: return
+     await query.message.reply_text(
+        "<b>Bot Token Successfully Added To Database</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
+  
+  elif type=="adduserbot":
+     await query.message.delete()
+     user = await CLIENT.add_session(bot, query)
+     if user != True: return
+     await query.message.reply_text(
+        "<b>Session Successfully Added To Database</b>",
+        reply_markup=InlineKeyboardMarkup(buttons))
+      
+  elif type=="channels":
+     buttons = []
+     channels = await db.get_user_channels(user_id)
+     for channel in channels:
+        buttons.append([InlineKeyboardButton(f"{channel['title']}",
+                         callback_data=f"settings#editchannels_{channel['chat_id']}")])
+     buttons.append([InlineKeyboardButton('✚ Add Channel ✚', 
+                      callback_data="settings#addchannel")])
+     buttons.append([InlineKeyboardButton('🔙 Back', 
+                      callback_data="settings#main")])
+     await query.message.edit_text( 
+       "<b><u>My Channels</u></b>\n\nYou Can Manage Your Target Chats In Here",
+       reply_markup=InlineKeyboardMarkup(buttons))
+   
+  elif type=="addchannel":  
+     await query.message.delete()
+     try:
+         text = await bot.send_message(user_id, "<b><u>Set Target Chat</u></b>\n\nForward A Message From Your Target Chat\n/cancel - To Cancel This Process")
+         chat_ids = await bot.listen(chat_id=user_id, timeout=300)
+         if chat_ids.text=="/cancel":
+            await chat_ids.delete()
+            return await text.edit_text(
+                  "Process Canceled",
+                  reply_markup=InlineKeyboardMarkup(buttons))
+         elif not chat_ids.forward_date:
+            await chat_ids.delete()
+            return await text.edit_text("This Is Not A Forward Message")
+         else:
+            chat_id = chat_ids.forward_from_chat.id
+            title = chat_ids.forward_from_chat.title
+            username = chat_ids.forward_from_chat.username
+            username = "@" + username if username else "private"
+         chat = await db.add_channel(user_id, chat_id, title, username)
+         await chat_ids.delete()
+         await text.edit_text(
+            "Successfully Updated" if chat else "This Channel Already Added",
+            reply_markup=InlineKeyboardMarkup(buttons))
+     except asyncio.exceptions.TimeoutError:
+         await text.edit_text('Process Has Been Automatically Cancelled', reply_markup=InlineKeyboardMarkup(buttons))
+  
+  elif type=="editbot": 
+     bot = await db.get_bot(user_id)
+     TEXT = Translation.BOT_DETAILS if bot['is_bot'] else Translation.USER_DETAILS
+     buttons = [[InlineKeyboardButton('❌ Remove ❌', callback_data=f"settings#removebot")
+               ],
+               [InlineKeyboardButton('🔙 Back', callback_data="settings#bots")]]
+     await query.message.edit_text(
+        TEXT.format(bot['name'], bot['id'], bot['username']),
+        reply_markup=InlineKeyboardMarkup(buttons))
+                                             
+  elif type=="removebot":
+     await db.remove_bot(user_id)
+     await query.message.edit_text(
+        "Successfully Updated",
+        reply_markup=InlineKeyboardMarkup(buttons))
+                                             
+  elif type.startswith("editchannels"): 
+     chat_id = type.split('_')[1]
+     chat = await db.get_channel_details(user_id, chat_id)
+     buttons = [[InlineKeyboardButton('❌ Remove ❌', callback_data=f"settings#removechannel_{chat_id}")
+               ],
+               [InlineKeyboardButton('🔙 Back', callback_data="settings#channels")]]
+     await query.message.edit_text(
+        f"<b><u>📄 Channel Details</b></u>\n\n<b>Title :</b> <code>{chat['title']}</code>\n<b>Channel ID :</b> <code>{chat['chat_id']}</code>\n<b>Username :</b> {chat['username']}",
+        reply_markup=InlineKeyboardMarkup(buttons))
+                                             
+  elif type.startswith("removechannel"):
+     chat_id = type.split('_')[1]
+     await db.remove_channel(user_id, chat_id)
+     await query.message.edit_text(
+        "Successfully Updated",
+        reply_markup=InlineKeyboardMarkup(buttons))
+                               
+  elif type=="caption":
+     data = await get_configs(user_id)
+     buttons = [
+         [InlineKeyboardButton('🗃 HEADER', callback_data='settings#header'),
+          InlineKeyboardButton('🗃 FOOTER', callback_data='settings#footer')],
+         [InlineKeyboardButton('⇤ PREFIX', callback_data='settings#prefix'),
+          InlineKeyboardButton('⇥ SUFFIX', callback_data='settings#suffix')],
+         [InlineKeyboardButton('⬅️ DELETE BEFORE', callback_data='settings#delete_before'),
+          InlineKeyboardButton('➡️ DELETE AFTER', callback_data='settings#delete_after')],
+         [InlineKeyboardButton('➖ DELETE WORDS', callback_data='settings#delete_words'),
+          InlineKeyboardButton('➿ REPLACE WORDS', callback_data='settings#replace_words')],
+         [InlineKeyboardButton('✅ LINK REMOVE' if data.get('link_remove') else '❌ LINK REMOVE', callback_data='settings#link_remove'),
+          InlineKeyboardButton('➿ LINK REPLACE', callback_data='settings#link_replace')],
+         [InlineKeyboardButton('✅ REMOVE USERNAME' if data.get('remove_username') else '❌ REMOVE USERNAME', callback_data='settings#remove_username'),
+          InlineKeyboardButton('➿ USERNAME REPLACE', callback_data='settings#username_replace')],
+         [InlineKeyboardButton('✂️ CAPTION LENGTH', callback_data='settings#caption_length'),
+          InlineKeyboardButton('🖌 RENEW CAPTION', callback_data='settings#renew_caption')],
+         [InlineKeyboardButton('♻️ RESET CAPTION', callback_data='settings#reset_caption'),
+          InlineKeyboardButton('😱 SEE CAPTION', callback_data='settings#seecaption')],
+         [InlineKeyboardButton('✅ ENABLED' if data.get('caption_enabled') else '❌ DISABLED', callback_data='settings#caption_enabled'),
+          InlineKeyboardButton('« BACK', callback_data='settings#main')]
+     ]
+     await query.message.edit_text(
+        Translation.CAPTION_TEXT,
+        reply_markup=InlineKeyboardMarkup(buttons))
+                               
+  elif type in ["header", "footer", "prefix", "suffix", "delete_before", "delete_after", "delete_words", "replace_words", "link_replace", "username_replace", "caption_length", "renew_caption"]:
+     data = await get_configs(user_id)
+     await query.message.delete()
+     try:
+         if type == "header": msg_text = Translation.HEADER_MSG.format(data.get('header') or "")
+         elif type == "footer": msg_text = Translation.FOOTER_MSG.format(data.get('footer') or "")
+         elif type == "prefix": msg_text = Translation.PREFIX_MSG.format(data.get('prefix') or "")
+         elif type == "suffix": msg_text = Translation.SUFFIX_MSG.format(data.get('suffix') or "")
+         elif type == "delete_before": msg_text = Translation.DELETE_BEFORE_MSG.format(data.get('delete_before') or "")
+         elif type == "delete_after": msg_text = Translation.DELETE_AFTER_MSG.format(data.get('delete_after') or "")
+         elif type == "delete_words": msg_text = Translation.DELETE_WORDS_MSG.format(data.get('delete_words') or "")
+         elif type == "replace_words": msg_text = Translation.REPLACE_WORDS_MSG.format(data.get('replace_words') or "")
+         elif type == "link_replace": msg_text = Translation.LINK_REPLACE_MSG.format(data.get('link_replace') or "")
+         elif type == "username_replace": msg_text = Translation.USERNAME_REPLACE_MSG.format(data.get('username_replace') or "")
+         elif type == "caption_length": msg_text = Translation.CAPTION_LENGTH_MSG.format(data.get('caption_length') or "")
+         elif type == "renew_caption": msg_text = Translation.RENEW_CAPTION_MSG
+
+         buttons_cap = [[InlineKeyboardButton('❌ REMOVE', callback_data=f'settings#rem_{type}'), InlineKeyboardButton('« BACK', callback_data='settings#caption')]]
+         if type == "renew_caption":
+             buttons_cap = [[InlineKeyboardButton('🖌 MODIFY RENEW CAPTION', callback_data='settings#exec_renew')], [InlineKeyboardButton('❌ REMOVE', callback_data=f'settings#rem_caption'), InlineKeyboardButton('« BACK', callback_data='settings#caption')]]
+
+         text_msg = await bot.send_message(query.message.chat.id, msg_text, reply_markup=InlineKeyboardMarkup(buttons_cap))
+         input_msg = await bot.listen(chat_id=user_id, timeout=300)
+         
+         if input_msg.text:
+             val = input_msg.text
+             if type == "caption_length" and not val.isdigit():
+                 await input_msg.delete()
+                 return await text_msg.edit_text("Length must be a positive digit.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
+             
+             await update_configs(user_id, type if type != "renew_caption" else "caption", val)
+             await input_msg.delete()
+             await text_msg.edit_text("〰️ SUCCESSFULLY UPDATED", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('❌ REMOVE', callback_data=f'settings#rem_{type}'), InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
+
+     except asyncio.exceptions.TimeoutError:
+         if 'text_msg' in locals():
+            await text_msg.edit_text('PROCESS CANCELLED', reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
+  
+  elif type == "exec_renew":
+      await query.message.delete()
+      try:
+         text_msg = await bot.send_message(query.message.chat.id, Translation.SEND_NEW_CAPTION_MSG)
+         input_msg = await bot.listen(chat_id=user_id, timeout=300)
+         if input_msg.text == "/cancel":
+             await input_msg.delete()
+             return await text_msg.edit_text("Process Cancelled")
+         await update_configs(user_id, 'caption', input_msg.text.html)
+         await input_msg.delete()
+         await text_msg.edit_text("〰️ SUCCESSFULLY UPDATED", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
+      except asyncio.exceptions.TimeoutError:
+         if 'text_msg' in locals():
+             await text_msg.edit_text('PROCESS CANCELLED', reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
+
+  elif type.startswith("rem_"):
+      key = type.split("rem_")[1]
+      await update_configs(user_id, key, None)
+      await query.message.edit_text("〰️ SUCCESSFULLY UPDATED", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
+
+  elif type in ["link_remove", "remove_username", "caption_enabled"]:
+      data = await get_configs(user_id)
+      status = bool(data.get(type))
+      await update_configs(user_id, type, not status)
+      
+      # Re-fetch the layout
+      buttons = [
+         [InlineKeyboardButton('🗃 HEADER', callback_data='settings#header'), InlineKeyboardButton('🗃 FOOTER', callback_data='settings#footer')],
+         [InlineKeyboardButton('⇤ PREFIX', callback_data='settings#prefix'), InlineKeyboardButton('⇥ SUFFIX', callback_data='settings#suffix')],
+         [InlineKeyboardButton('⬅️ DELETE BEFORE', callback_data='settings#delete_before'), InlineKeyboardButton('➡️ DELETE AFTER', callback_data='settings#delete_after')],
+         [InlineKeyboardButton('➖ DELETE WORDS', callback_data='settings#delete_words'), InlineKeyboardButton('➿ REPLACE WORDS', callback_data='settings#replace_words')],
+         [InlineKeyboardButton('✅ LINK REMOVE' if not status and type=='link_remove' or data.get('link_remove') and type!='link_remove' else '❌ LINK REMOVE', callback_data='settings#link_remove'), InlineKeyboardButton('➿ LINK REPLACE', callback_data='settings#link_replace')],
+         [InlineKeyboardButton('✅ REMOVE USERNAME' if not status and type=='remove_username' or data.get('remove_username') and type!='remove_username' else '❌ REMOVE USERNAME', callback_data='settings#remove_username'), InlineKeyboardButton('➿ USERNAME REPLACE', callback_data='settings#username_replace')],
+         [InlineKeyboardButton('✂️ CAPTION LENGTH', callback_data='settings#caption_length'), InlineKeyboardButton('🖌 RENEW CAPTION', callback_data='settings#renew_caption')],
+         [InlineKeyboardButton('♻️ RESET CAPTION', callback_data='settings#reset_caption'), InlineKeyboardButton('😱 SEE CAPTION', callback_data='settings#seecaption')],
+         [InlineKeyboardButton('✅ ENABLED' if not status and type=='caption_enabled' or data.get('caption_enabled') and type!='caption_enabled' else '❌ DISABLED', callback_data='settings#caption_enabled'), InlineKeyboardButton('« BACK', callback_data='settings#main')]
+      ]
+      await query.message.edit_text(Translation.CAPTION_TEXT, reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type == "reset_caption":
+      for k in ["header", "footer", "prefix", "suffix", "delete_before", "delete_after", "delete_words", "replace_words", "link_replace", "username_replace", "caption_length", "caption"]:
+          await update_configs(user_id, k, None)
+      await update_configs(user_id, "link_remove", False)
+      await update_configs(user_id, "remove_username", False)
+      await update_configs(user_id, "caption_enabled", True)
+      await query.message.edit_text("〰️ SUCCESSFULLY RESET", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
+
+  elif type=="seecaption":   
+     data = await get_configs(user_id)
+     buttons = [[InlineKeyboardButton('« BACK', callback_data="settings#caption")]]
+     await query.message.edit_text(
+        Translation.SEE_CAPTION_MSG.format(
+            data.get('header') or "", data.get('footer') or "", data.get('prefix') or "", data.get('suffix') or "",
+            data.get('replace_words') or "", data.get('delete_words') or "", data.get('caption') or "", data.get('caption_length') or "",
+            data.get('username_replace') or "", data.get('link_replace') or "", data.get('delete_before') or "", data.get('delete_after') or ""
+        ),
+        reply_markup=InlineKeyboardMarkup(buttons))
+  
+  elif type=="button":
+     buttons = []
+     button = (await get_configs(user_id))['button']
+     if button is None:
+        buttons.append([InlineKeyboardButton('✚ Add Button ✚', 
+                      callback_data="settings#addbutton")])
+     else:
+        buttons.append([InlineKeyboardButton('👀 See Button', 
+                      callback_data="settings#seebutton")])
+        buttons[-1].append(InlineKeyboardButton('🗑️ Remove Button ', 
+                      callback_data="settings#deletebutton"))
+     buttons.append([InlineKeyboardButton('🔙 Back', 
+                      callback_data="settings#main")])
+     await query.message.edit_text(
+        "<b><u>Custom Button</b></u>\n\nYou Can Set A Inline Button To Messages.\n\n<b><u>Format :</b></u>\n`[Madflix Botz][buttonurl:https://t.me/Madflix_Bots]`\n",
+        reply_markup=InlineKeyboardMarkup(buttons))
+  
+  elif type=="addbutton":
+     await query.message.delete()
+     try:
+         txt = await bot.send_message(user_id, text="**Send your custom button.\n\nFORMAT:**\n`[forward bot][buttonurl:https://t.me/KR_Forward_Bot]`\n")
+         ask = await bot.listen(chat_id=user_id, timeout=300)
+         button = parse_buttons(ask.text.html)
+         if not button:
+            await ask.delete()
+            return await txt.edit_text("Invalid Button")
+         await update_configs(user_id, 'button', ask.text.html)
+         await ask.delete()
+         await txt.edit_text("Successfully Button Added",
+            reply_markup=InlineKeyboardMarkup(buttons))
+     except asyncio.exceptions.TimeoutError:
+         await txt.edit_text('Process Has Been Automatically Cancelled', reply_markup=InlineKeyboardMarkup(buttons))
+  
+  elif type=="seebutton":
+      button = (await get_configs(user_id))['button']
+      button = parse_buttons(button, markup=False)
+      button.append([InlineKeyboardButton("🔙 Back", "settings#button")])
+      await query.message.edit_text(
+         "**Your Custom Button**",
+         reply_markup=InlineKeyboardMarkup(button))
+      
+  elif type=="deletebutton":
+     await update_configs(user_id, 'button', None)
+     await query.message.edit_text(
+        "Successfully Button Deleted",
+        reply_markup=InlineKeyboardMarkup(buttons))
+   
+  elif type=="database":
+     buttons = []
+     db_uri = (await get_configs(user_id))['db_uri']
+     if db_uri is None:
+        buttons.append([InlineKeyboardButton('✚ Add URL ✚', 
+                      callback_data="settings#addurl")])
+     else:
+        buttons.append([InlineKeyboardButton('👀 See URL', 
+                      callback_data="settings#seeurl")])
+        buttons[-1].append(InlineKeyboardButton('🗑️ Remove URL', 
+                      callback_data="settings#deleteurl"))
+     buttons.append([InlineKeyboardButton('🔙 Back', 
+                      callback_data="settings#main")])
+     await query.message.edit_text(
+        "<b><u>Database</u></b>\n\nDatabase Is Required For Store Your Duplicate Messages Permenant. Other Wise Stored Duplicate Media May Be Disappeared When After Bot Restart.",
+        reply_markup=InlineKeyboardMarkup(buttons))
+
+  elif type=="addurl":
+     await query.message.delete()
+     uri = await bot.ask(user_id, "<b>please send your mongodb url.</b>\n\n<i>get your Mongodb url from [here](https://mongodb.com)</i>", disable_web_page_preview=True)
+     if uri.text=="/cancel":
+        return await uri.reply_text(
+                  "Process Cancelled !",
+                  reply_markup=InlineKeyboardMarkup(buttons))
+     if not uri.text.startswith("mongodb+srv://") and not uri.text.endswith("majority"):
+        return await uri.reply("Invalid Mongodb URL",
+                   reply_markup=InlineKeyboardMarkup(buttons))
+     await update_configs(user_id, 'db_uri', uri.text)
+     await uri.reply("Successfully Database URL Added ✅",
+             reply_markup=InlineKeyboardMarkup(buttons))
+  
+  elif type=="seeurl":
+     db_uri = (await get_configs(user_id))['db_uri']
+     await query.answer(f"Database URL : {db_uri}", show_alert=True)
+  
+  elif type=="deleteurl":
+     await update_configs(user_id, 'db_uri', None)
+     await query.message.edit_text(
+        "Successfully Your Database URL Deleted",
+        reply_markup=InlineKeyboardMarkup(buttons))
+      
+  elif type=="filters":
+     await query.message.edit_text(
+        "<b><u>Custom Filters</u></b>\n\nConfigure The Type Of Messages Which You Want Forward",
+        reply_markup=await filters_buttons(user_id))
+  
+  elif type=="nextfilters":
+     await query.edit_message_reply_markup( 
+        reply_markup=await next_filters_buttons(user_id))
+   
+  elif type.startswith("updatefilter"):
+     i, key, value = type.split('-')
+     if value=="True":
+        await update_configs(user_id, key, False)
+     else:
+        await update_configs(user_id, key, True)
+     if key in ['poll', 'protect']:
+        return await query.edit_message_reply_markup(
+           reply_markup=await next_filters_buttons(user_id)) 
+     await query.edit_message_reply_markup(
+        reply_markup=await filters_buttons(user_id))
+   
+  elif type.startswith("file_size"):
+    settings = await get_configs(user_id)
+    size = settings.get('file_size', 0)
+    i, limit = size_limit(settings['size_limit'])
+    await query.message.edit_text(
+       f'<b><u>Size Limit</u></b>\n\nYou Can Set File Size Limit To Forward\n\nStatus : Files With {limit} `{size} MB` Will Forward',
+       reply_markup=size_button(size))
+  
+  elif type.startswith("update_size"):
+    size = int(query.data.split('-')[1])
+    if 0 < size > 2000:
+      return await query.answer("Size Limit Exceeded", show_alert=True)
+    await update_configs(user_id, 'file_size', size)
+    i, limit = size_limit((await get_configs(user_id))['size_limit'])
+    await query.message.edit_text(
+       f'<b><u>Size Limit</u></b>\n\nYou Can Set File Size Limit To Forward\n\nStatus : Files With {limit} `{size} MB` Will Forward',
+       reply_markup=size_button(size))
+  
+  elif type.startswith('update_limit'):
+    i, limit, size = type.split('-')
+    limit, sts = size_limit(limit)
+    await update_configs(user_id, 'size_limit', limit) 
+    await query.message.edit_text(
+       f'<b><u>Size Limit</u></b>\n\nYou Can Set File Size Limit To Forward\n\nStatus : Files With {sts} `{size} MB` Will Forward',
+       reply_markup=size_button(int(size)))
+      
+  elif type == "add_extension":
+    await query.message.delete() 
+    ext = await bot.ask(user_id, text="Please Send Your Extensions (Seperete By Space)")
+    if ext.text == '/cancel':
+       return await ext.reply_text(
+                  "Process Cancelled",
+                  reply_markup=InlineKeyboardMarkup(buttons))
+    extensions = ext.text.split(" ")
+    extension = (await get_configs(user_id))['extension']
+    if extension:
+        for extn in extensions:
+            extension.append(extn)
+    else:
+        extension = extensions
+    await update_configs(user_id, 'extension', extension)
+    await ext.reply_text(
+        f"Successfully Updated",
+        reply_markup=InlineKeyboardMarkup(buttons))
+      
+  elif type == "get_extension":
+    extensions = (await get_configs(user_id))['extension']
+    btn = extract_btn(extensions)
+    btn.append([InlineKeyboardButton('✚ Add ✚', 'settings#add_extension')])
+    btn.append([InlineKeyboardButton('Remove All', 'settings#rmve_all_extension')])
+    btn.append([InlineKeyboardButton('🔙 Back', 'settings#main')])
+    await query.message.edit_text(
+        text='<b><u>Extensions</u></b>\n\nFiles With These Extiontions Will Not Forward',
+        reply_markup=InlineKeyboardMarkup(btn))
+  
+  elif type == "rmve_all_extension":
+    await update_configs(user_id, 'extension', None)
+    await query.message.edit_text(text="Successfully Deleted",
+                                   reply_markup=InlineKeyboardMarkup(buttons))
+  elif type == "add_keyword":
+    await query.message.delete()
+    ask = await bot.ask(user_id, text="Please Send The Keywords (Seperete By Space)")
+    if ask.text == '/cancel':
+       return await ask.reply_text(
+                  "Process Canceled",
+                  reply_markup=InlineKeyboardMarkup(buttons))
+    keywords = ask.text.split(" ")
+    keyword = (await get_configs(user_id))['keywords']
+    if keyword:
+        for word in keywords:
+            keyword.append(word)
+    else:
+        keyword = keywords
+    await update_configs(user_id, 'keywords', keyword)
+    await ask.reply_text(
+        f"Successfully Updated",
+        reply_markup=InlineKeyboardMarkup(buttons))
+  
+  elif type == "get_keyword":
+    keywords = (await get_configs(user_id))['keywords']
+    btn = extract_btn(keywords)
+    btn.append([InlineKeyboardButton('✚ Add ✚', 'settings#add_keyword')])
+    btn.append([InlineKeyboardButton('Remove All', 'settings#rmve_all_keyword')])
+    btn.append([InlineKeyboardButton('🔙 Back', 'settings#main')])
+    await query.message.edit_text(
+        text='<b><u>Keywords</u></b>\n\nFile With These Keywords In File Name Will Forwad',
+        reply_markup=InlineKeyboardMarkup(btn))
+      
+  elif type == "rmve_all_keyword":
+    await update_configs(user_id, 'keywords', None)
+    await query.message.edit_text(text="Successfully Deleted",
+                                   reply_markup=InlineKeyboardMarkup(buttons))
+  elif type.startswith("alert"):
+    alert = type.split('_')[1]
+    await query.answer(alert, show_alert=True)
+      
 def main_buttons():
-    """Main settings menu layout."""
-    buttons = [[
-        InlineKeyboardButton('🤖 Bots', callback_data='settings#bots'),
-        InlineKeyboardButton('🔥 Channels', callback_data='settings#channels')
-    ],[
-        InlineKeyboardButton('✏️ Caption', callback_data='settings#caption'),
-        InlineKeyboardButton('📌 Pinning', callback_data='settings#pinning')
-    ],[
-        InlineKeyboardButton('🕵️ Filters', callback_data='settings#filters_menu'),
-        InlineKeyboardButton('⚙️ Extra Settings', callback_data='settings#extra_settings_menu')
-    ],[
-        InlineKeyboardButton('🔙 Back', callback_data='back')
-    ]]
-    return InlineKeyboardMarkup(buttons)
+  buttons = [[
+       InlineKeyboardButton('🤖 BOTS',
+                    callback_data=f'settings#bots'),
+       InlineKeyboardButton('🗃 CHANNELS',
+                    callback_data=f'settings#channels')
+       ],[
+       InlineKeyboardButton('✏️ CAPTION',
+                    callback_data=f'settings#caption'),
+       InlineKeyboardButton('📌 PINNING',
+                    callback_data=f'settings#pinning')
+       ],[
+       InlineKeyboardButton('🕵‍♀ FILTERS',
+                    callback_data=f'settings#filters'),
+       InlineKeyboardButton('🗄 EXTRA',
+                    callback_data=f'settings#nextfilters')
+       ],[      
+       InlineKeyboardButton('« BACK', callback_data='back')
+       ]]
+  return InlineKeyboardMarkup(buttons)
 
 def size_limit(limit):
-    """Parse size limit setting."""
-    if str(limit) == "None":
-        return None, ""
-    elif str(limit) == "True":
-        return True, "more than"
-    else:
-        return False, "less than"
+   if str(limit) == "None":
+      return None, ""
+   elif str(limit) == "True":
+      return True, "more than"
+   else:
+      return False, "less than"
 
 def extract_btn(datas):
-    """Extract buttons from data."""
     i = 0
     btn = []
     if datas:
-        for data in datas:
-            if i >= 5:
-                i = 0
-            if i == 0:
-                btn.append([InlineKeyboardButton(data, f'settings#alert_{data}')])
-                i += 1
-                continue
-            elif i > 0:
-                btn[-1].append(InlineKeyboardButton(data, f'settings#alert_{data}'))
-                i += 1
-    return btn
+       for data in datas:
+         if i >= 5:
+            i = 0
+         if i == 0:
+            btn.append([InlineKeyboardButton(data, f'settings#alert_{data}')])
+            i += 1
+            continue
+         elif i > 0:
+            btn[-1].append(InlineKeyboardButton(data, f'settings#alert_{data}'))
+            i += 1
+    return btn 
 
 def size_button(size):
-    """Generate size adjustment buttons."""
-    buttons = [[
-        InlineKeyboardButton('+', callback_data=f'settings#update_limit-True-{size}'),
-        InlineKeyboardButton('=', callback_data=f'settings#update_limit-None-{size}'),
-        InlineKeyboardButton('-', callback_data=f'settings#update_limit-False-{size}')
-    ],[
-        InlineKeyboardButton('+1', callback_data=f'settings#update_size-{size + 1}'),
-        InlineKeyboardButton('-1', callback_data=f'settings#update_size_-{size - 1}')
-    ],[
-        InlineKeyboardButton('+5', callback_data=f'settings#update_size-{size + 5}'),
-        InlineKeyboardButton('-5', callback_data=f'settings#update_size_-{size - 5}')
-    ],[
-        InlineKeyboardButton('+10', callback_data=f'settings#update_size-{size + 10}'),
-        InlineKeyboardButton('-10', callback_data=f'settings#update_size_-{size - 10}')
-    ],[
-        InlineKeyboardButton('+50', callback_data=f'settings#update_size-{size + 50}'),
-        InlineKeyboardButton('-50', callback_data=f'settings#update_size_-{size - 50}')
-    ],[
-        InlineKeyboardButton('+100', callback_data=f'settings#update_size-{size + 100}'),
-        InlineKeyboardButton('-100', callback_data=f'settings#update_size_-{size - 100}')
-    ],[
-        InlineKeyboardButton('« Back', callback_data='settings#main')
-    ]]
-    return InlineKeyboardMarkup(buttons)
+  buttons = [[
+       InlineKeyboardButton('+',
+                    callback_data=f'settings#update_limit-True-{size}'),
+       InlineKeyboardButton('=',
+                    callback_data=f'settings#update_limit-None-{size}'),
+       InlineKeyboardButton('-',
+                    callback_data=f'settings#update_limit-False-{size}')
+       ],[
+       InlineKeyboardButton('+1',
+                    callback_data=f'settings#update_size-{size + 1}'),
+       InlineKeyboardButton('-1',
+                    callback_data=f'settings#update_size_-{size - 1}')
+       ],[
+       InlineKeyboardButton('+5',
+                    callback_data=f'settings#update_size-{size + 5}'),
+       InlineKeyboardButton('-5',
+                    callback_data=f'settings#update_size_-{size - 5}')
+       ],[
+       InlineKeyboardButton('+10',
+                    callback_data=f'settings#update_size-{size + 10}'),
+       InlineKeyboardButton('-10',
+                    callback_data=f'settings#update_size_-{size - 10}')
+       ],[
+       InlineKeyboardButton('+50',
+                    callback_data=f'settings#update_size-{size + 50}'),
+       InlineKeyboardButton('-50',
+                    callback_data=f'settings#update_size_-{size - 50}')
+       ],[
+       InlineKeyboardButton('+100',
+                    callback_data=f'settings#update_size-{size + 100}'),
+       InlineKeyboardButton('-100',
+                    callback_data=f'settings#update_size_-{size - 100}')
+       ],[
+       InlineKeyboardButton('↩ Back',
+                    callback_data="settings#main")
+     ]]
+  return InlineKeyboardMarkup(buttons)
+       
+async def filters_buttons(user_id):
+  filter = await get_configs(user_id)
+  filters = filter['filters']
+  buttons = [[
+       InlineKeyboardButton('🏷️ Forward Tag',
+                    callback_data=f'settings_#updatefilter-forward_tag-{filter["forward_tag"]}'),
+       InlineKeyboardButton('✅' if filter['forward_tag'] else '❌',
+                    callback_data=f'settings#updatefilter-forward_tag-{filter["forward_tag"]}')
+       ],[
+       InlineKeyboardButton('🖍️ Texts',
+                    callback_data=f'settings_#updatefilter-text-{filters["text"]}'),
+       InlineKeyboardButton('✅' if filters['text'] else '❌',
+                    callback_data=f'settings#updatefilter-text-{filters["text"]}')
+       ],[
+       InlineKeyboardButton('📁 Documents',
+                    callback_data=f'settings_#updatefilter-document-{filters["document"]}'),
+       InlineKeyboardButton('✅' if filters['document'] else '❌',
+                    callback_data=f'settings#updatefilter-document-{filters["document"]}')
+       ],[
+       InlineKeyboardButton('🎞️ Videos',
+                    callback_data=f'settings_#updatefilter-video-{filters["video"]}'),
+       InlineKeyboardButton('✅' if filters['video'] else '❌',
+                    callback_data=f'settings#updatefilter-video-{filters["video"]}')
+       ],[
+       InlineKeyboardButton('📷 Photos',
+                    callback_data=f'settings_#updatefilter-photo-{filters["photo"]}'),
+       InlineKeyboardButton('✅' if filters['photo'] else '❌',
+                    callback_data=f'settings#updatefilter-photo-{filters["photo"]}')
+       ],[
+       InlineKeyboardButton('🎧 Audios',
+                    callback_data=f'settings_#updatefilter-audio-{filters["audio"]}'),
+       InlineKeyboardButton('✅' if filters['audio'] else '❌',
+                    callback_data=f'settings#updatefilter-audio-{filters["audio"]}')
+       ],[
+       InlineKeyboardButton('🎤 Voices',
+                    callback_data=f'settings_#updatefilter-voice-{filters["voice"]}'),
+       InlineKeyboardButton('✅' if filters['voice'] else '❌',
+                    callback_data=f'settings#updatefilter-voice-{filters["voice"]}')
+       ],[
+       InlineKeyboardButton('🎭 Animations',
+                    callback_data=f'settings_#updatefilter-animation-{filters["animation"]}'),
+       InlineKeyboardButton('✅' if filters['animation'] else '❌',
+                    callback_data=f'settings#updatefilter-animation-{filters["animation"]}')
+       ],[
+       InlineKeyboardButton('🃏 Stickers',
+                    callback_data=f'settings_#updatefilter-sticker-{filters["sticker"]}'),
+       InlineKeyboardButton('✅' if filters['sticker'] else '❌',
+                    callback_data=f'settings#updatefilter-sticker-{filters["sticker"]}')
+       ],[
+       InlineKeyboardButton('▶️ Skip Duplicate',
+                    callback_data=f'settings_#updatefilter-duplicate-{filter["duplicate"]}'),
+       InlineKeyboardButton('✅' if filter['duplicate'] else '❌',
+                    callback_data=f'settings#updatefilter-duplicate-{filter["duplicate"]}')
+       ],[
+       InlineKeyboardButton('🔙 back',
+                    callback_data="settings#main")
+       ]]
+  return InlineKeyboardMarkup(buttons) 
 
-# --- Main Settings Handler ---
-@Client.on_callback_query(filters.regex(r'^settings#'))
-async def setting_cb(bot, query):
-    try:
-        user_id = query.from_user.id
-        type = query.data.split('#')[1]
-        
-        # --- CAPTION SETTINGS (Handled separately) ---
-        if type.startswith('caption') or type == 'caption':
-            await handle_caption_query(bot, query, user_id, type)
-            return
-        
-        # --- PINNING SETTINGS ---
-        if type == "pinning":
-            configs = await get_configs(user_id)
-            pinning_enabled = configs.get('pinning', False)
-            
-            buttons = [[
-                InlineKeyboardButton(f"{'✅ Enabled' if pinning_enabled else '❌ Disabled'}", 
-                                   callback_data=f'settings#toggle_pinning-{pinning_enabled}')
-            ],[
-                InlineKeyboardButton('« BACK', callback_data='settings#main')
-            ]]
-            
-            await query.message.edit_text(
-                "<b><u>📌 Pinning Settings</u></b>\n\n"
-                "When enabled, messages that are pinned in the source channel will also be pinned in the target channel.\n\n"
-                f"<b>Current Status:</b> {'✅ Enabled' if pinning_enabled else '❌ Disabled'}",
-                reply_markup=InlineKeyboardMarkup(buttons)
-            )
-        
-        elif type.startswith("toggle_pinning"):
-            current_state = type.split('-')[1] == 'True'
-            new_state = not current_state
-            await update_configs(user_id, 'pinning', new_state)
-            
-            buttons = [[
-                InlineKeyboardButton(f"{'✅ Enabled' if new_state else '❌ Disabled'}", 
-                                   callback_data=f'settings#toggle_pinning-{new_state}')
-            ],[
-                InlineKeyboardButton('« BACK', callback_data='settings#main')
-            ]]
-            
-            await query.message.edit_text(
-                "<b><u>📌 Pinning Settings</u></b>\n\n"
-                "When enabled, messages that are pinned in the source channel will also be pinned in the target channel.\n\n"
-                f"<b>Current Status:</b> {'✅ Enabled' if new_state else '❌ Disabled'}",
-                reply_markup=InlineKeyboardMarkup(buttons)
-            )
-        
-        # --- MAIN MENU ---
-        elif type == "main":
-            await query.message.edit_text(
-                "<b><u>⚙️ Settings Menu</u></b>\n\n"
-                "Choose what you want to configure:",
-                reply_markup=main_buttons()
-            )
-        
-        # --- BOTS MENU ---
-        elif type == "bots":
-            user_bot = await db.get_bot(user_id)
-            if user_bot:
-                bot_info = f"✅ <b>Bot Added</b>\n\nName: {user_bot['name']}\nUsername: @{user_bot['username']}"
-                btn = [
-                    [InlineKeyboardButton('✏️ Change Bot', callback_data='settings#add_bot')],
-                    [InlineKeyboardButton('« BACK', callback_data='settings#main')]
-                ]
-            else:
-                bot_info = "❌ <b>No Bot Added</b>\n\nAdd a bot to start forwarding messages."
-                btn = [
-                    [InlineKeyboardButton('➕ Add Bot', callback_data='settings#add_bot')],
-                    [InlineKeyboardButton('« BACK', callback_data='settings#main')]
-                ]
-            
-            await query.message.edit_text(
-                "<b><u>🤖 Bot Settings</u></b>\n\n" + bot_info,
-                reply_markup=InlineKeyboardMarkup(btn)
-            )
-        
-        elif type == "add_bot":
-            result = await CLIENT.add_bot(bot, query.message)
-            if result:
-                await query.message.edit_text("✅ <b>Bot Added Successfully!</b>", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#bots')]]))
-            else:
-                await query.message.edit_text("❌ <b>Bot Addition Failed</b>", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#bots')]]))
-        
-        # --- CHANNELS MENU ---
-        elif type == "channels":
-            channels = await db.get_user_channels(user_id)
-            if channels:
-                channel_list = "\n".join([f"✅ {ch['title']}" for ch in channels])
-                btn = [
-                    [InlineKeyboardButton('➕ Add Channel', callback_data='settings#add_channel')],
-                    [InlineKeyboardButton('🗑️ Remove Channel', callback_data='settings#remove_channel')],
-                    [InlineKeyboardButton('« BACK', callback_data='settings#main')]
-                ]
-            else:
-                channel_list = "❌ <b>No Channel Added</b>"
-                btn = [
-                    [InlineKeyboardButton('➕ Add Channel', callback_data='settings#add_channel')],
-                    [InlineKeyboardButton('« BACK', callback_data='settings#main')]
-                ]
-            
-            await query.message.edit_text(
-                "<b><u>🔥 Channel Settings</u></b>\n\n" + channel_list,
-                reply_markup=InlineKeyboardMarkup(btn)
-            )
-        
-        elif type == "add_channel":
-            # This would require async input from user
-            await query.message.edit_text(
-                "Send the target channel ID or username (with @):\n\n/cancel - Cancel",
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#channels')]])
-            )
-        
-        elif type == "remove_channel":
-            channels = await db.get_user_channels(user_id)
-            if channels:
-                btn = [[InlineKeyboardButton(ch['title'], callback_data=f'settings#remove_ch_{ch["chat_id"]}')] for ch in channels]
-                btn.append([InlineKeyboardButton('« BACK', callback_data='settings#channels')])
-                
-                await query.message.edit_text(
-                    "<b>Select channel to remove:</b>",
-                    reply_markup=InlineKeyboardMarkup(btn)
-                )
-        
-        # --- FILTERS MENU ---
-        elif type == "filters_menu":
-            btn = [
-                [InlineKeyboardButton('📄 Document', callback_data='settings#filter_document')],
-                [InlineKeyboardButton('🎬 Video', callback_data='settings#filter_video')],
-                [InlineKeyboardButton('🎵 Audio', callback_data='settings#filter_audio')],
-                [InlineKeyboardButton('🖼️ Photo', callback_data='settings#filter_photo')],
-                [InlineKeyboardButton('« BACK', callback_data='settings#main')]
-            ]
-            
-            await query.message.edit_text(
-                "<b><u>🕵️ Filters Menu</u></b>\n\n"
-                "Choose file type to configure filters:",
-                reply_markup=InlineKeyboardMarkup(btn)
-            )
-        
-        # --- EXTRA SETTINGS ---
-        elif type == "extra_settings_menu":
-            btn = [
-                [InlineKeyboardButton('📝 Custom Caption', callback_data='settings#caption')],
-                [InlineKeyboardButton('⏷️ Forward Tag', callback_data='settings#forward_tag')],
-                [InlineKeyboardButton('🔒 Protect Content', callback_data='settings#protect')],
-                [InlineKeyboardButton('🔘 Buttons', callback_data='settings#buttons')],
-                [InlineKeyboardButton('« BACK', callback_data='settings#main')]
-            ]
-            
-            await query.message.edit_text(
-                "<b><u>⚙️ Extra Settings</u></b>\n\n"
-                "Configure additional options:",
-                reply_markup=InlineKeyboardMarkup(btn)
-            )
-        
-        else:
-            await query.answer("Unknown setting", show_alert=True)
-    
-    except Exception as e:
-        await query.answer(f"Error: {str(e)}", show_alert=True)
-        logger.error(f"Settings callback error: {e}")
+async def next_filters_buttons(user_id):
+  filter = await get_configs(user_id)
+  filters = filter['filters']
+  buttons = [[
+       InlineKeyboardButton('📊 Poll',
+                    callback_data=f'settings_#updatefilter-poll-{filters["poll"]}'),
+       InlineKeyboardButton('✅' if filters['poll'] else '❌',
+                    callback_data=f'settings#updatefilter-poll-{filters["poll"]}')
+       ],[
+       InlineKeyboardButton('🔒 Secure Message',
+                    callback_data=f'settings_#updatefilter-protect-{filter["protect"]}'),
+       InlineKeyboardButton('✅' if filter['protect'] else '❌',
+                    callback_data=f'settings#updatefilter-protect-{filter["protect"]}')
+       ],[
+       InlineKeyboardButton('🛑 Size Limit',
+                    callback_data='settings#file_size')
+       ],[
+       InlineKeyboardButton('💾 Extension',
+                    callback_data='settings#get_extension')
+       ],[
+       InlineKeyboardButton('📌 Keywords',
+                    callback_data='settings#get_keyword')
+       ],[
+       InlineKeyboardButton('🔙 Back', 
+                    callback_data="settings#main")
+       ]]
+  return InlineKeyboardMarkup(buttons) 
+   
+
+
+
 
 
 # Jishu Developer 
