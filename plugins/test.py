@@ -36,52 +36,39 @@ SESSION_STRING_SIZE = 351
 
 async def start_clone_bot(FwdBot, data=None):
    await FwdBot.start()
-   try:
-      async for _ in FwdBot.get_dialogs(limit=100): pass
-   except Exception:
-      pass
-      
+   
    async def iter_messages(
       self, 
-      chat_id: Union[int, str], 
+      chat_id, 
       limit: int, 
       offset: int = 0,
-      search: str = None,
-      filter: "types.TypeMessagesFilter" = None,
+      from_topic: int = None,
       ) -> Optional[AsyncGenerator["types.Message", None]]:
-        """Iterate through a chat sequentially.
-        This convenience method does the same as repeatedly calling :meth:`~pyrogram.Client.get_messages` in a loop, thus saving
-        you from the hassle of setting up boilerplate code. It is useful for getting the whole chat messages with a
-        single call.
-        Parameters:
-            chat_id (``int`` | ``str``):
-                Unique identifier (int) or username (str) of the target chat.
-                For your personal cloud (Saved Messages) you can simply use "me" or "self".
-                For a contact that exists in your Telegram address book you can use his phone number (str).
-                
-            limit (``int``):
-                Identifier of the last message to be returned.
-                
-            offset (``int``, *optional*):
-                Identifier of the first message to be returned.
-                Defaults to 0.
-        Returns:
-            ``Generator``: A generator yielding :obj:`~pyrogram.types.Message` objects.
-        Example:
-            .. code-block:: python
-                for message in app.iter_messages("pyrogram", 1, 15000):
-                    print(message.text)
         """
-        current = max(1, offset)
+        Iterate through a chat using get_chat_history.
+        limit = the last message ID from the source link (upper boundary).
+        offset = number of messages to skip from the top.
+        Iterates from newest to oldest, stopping at message ID 1.
+        """
+        skipped = 0
+        offset_id = limit + 1  # Start just above the last known message ID
         while True:
-            new_diff = min(200, limit - current + 1)
-            if new_diff <= 0:
+            batch = []
+            async for msg in self.get_chat_history(chat_id, limit=200, offset_id=offset_id):
+                batch.append(msg)
+            if not batch:
                 return
-            messages = await self.get_messages(chat_id, list(range(current, current+new_diff)))
-            for message in messages:
+            for message in batch:
+                offset_id = message.id
+                if skipped < offset:
+                    skipped += 1
+                    continue
                 yield message
-                current += 1
+            if len(batch) < 200:
+                return
                 
+
+
    FwdBot.iter_messages = iter_messages
    return FwdBot
 
