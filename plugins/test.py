@@ -36,6 +36,11 @@ SESSION_STRING_SIZE = 351
 
 async def start_clone_bot(FwdBot, data=None):
    await FwdBot.start()
+   try:
+      async for _ in FwdBot.get_dialogs(limit=100): pass
+   except Exception:
+      pass
+      
    async def iter_messages(
       self, 
       chat_id: Union[int, str], 
