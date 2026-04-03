@@ -53,7 +53,7 @@ class STS:
            duplicate = [configs.get('db_uri', None), self.TO]
         else:
            duplicate = False
-        button = parse_buttons(configs.get('button', ''))
+        button = parse_buttons(configs.get('button') or '')
         if configs.get('file_size', 0) != 0:
             size = [configs.get('file_size', 0), configs.get('size_limit', 0)]
         return bot, configs, configs.get('forward_tag', False), {'chat_id': k.FROM, 'limit': k.limit, 'offset': k.skip, 'filters': filters,
