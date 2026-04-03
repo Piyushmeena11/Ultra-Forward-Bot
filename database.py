@@ -150,24 +150,24 @@ class Database:
        bot = await self.bot.find_one({'user_id': user_id})
        return bool(bot)
                                           
-    async def in_channel(self, user_id: int, chat_id: int) -> bool:
-       channel = await self.chl.find_one({"user_id": int(user_id), "chat_id": int(chat_id)})
+    async def in_channel(self, user_id: int, chat_id: int, topic_id: int = None) -> bool:
+       channel = await self.chl.find_one({"user_id": int(user_id), "chat_id": int(chat_id), "topic_id": topic_id})
        return bool(channel)
     
-    async def add_channel(self, user_id: int, chat_id: int, title, username):
-       channel = await self.in_channel(user_id, chat_id)
+    async def add_channel(self, user_id: int, chat_id: int, title, username, topic_id=None):
+       channel = await self.in_channel(user_id, chat_id, topic_id)
        if channel:
          return False
-       return await self.chl.insert_one({"user_id": user_id, "chat_id": chat_id, "title": title, "username": username})
+       return await self.chl.insert_one({"user_id": user_id, "chat_id": chat_id, "title": title, "username": username, "topic_id": topic_id})
     
-    async def remove_channel(self, user_id: int, chat_id: int):
-       channel = await self.in_channel(user_id, chat_id )
+    async def remove_channel(self, user_id: int, chat_id: int, topic_id=None):
+       channel = await self.in_channel(user_id, chat_id, topic_id)
        if not channel:
          return False
-       return await self.chl.delete_many({"user_id": int(user_id), "chat_id": int(chat_id)})
+       return await self.chl.delete_many({"user_id": int(user_id), "chat_id": int(chat_id), "topic_id": topic_id})
     
-    async def get_channel_details(self, user_id: int, chat_id: int):
-       return await self.chl.find_one({"user_id": int(user_id), "chat_id": int(chat_id)})
+    async def get_channel_details(self, user_id: int, chat_id: int, topic_id=None):
+       return await self.chl.find_one({"user_id": int(user_id), "chat_id": int(chat_id), "topic_id": topic_id})
        
     async def get_user_channels(self, user_id: int):
        channels = self.chl.find({"user_id": int(user_id)})
