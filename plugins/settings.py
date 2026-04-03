@@ -79,50 +79,83 @@ async def settings_query(bot, query):
      buttons = []
      channels = await db.get_user_channels(user_id)
      for channel in channels:
-        buttons.append([InlineKeyboardButton(f"{channel['title']}",
-                         callback_data=f"settings#editchannels_{channel['chat_id']}")])
-     buttons.append([InlineKeyboardButton('✚ Add Channel ✚', 
+        topic_suffix = f"_{channel['topic_id']}" if channel.get('topic_id') else ""
+        title = channel['title']
+        if channel.get('topic_id'):
+            title += f" (Topic: {channel['topic_id']})"
+        buttons.append([InlineKeyboardButton(f"{title}",
+                         callback_data=f"settings#editchannels_{channel['chat_id']}{topic_suffix}")])
+     buttons.append([InlineKeyboardButton('✚ Add Chat / Group ✚', 
                       callback_data="settings#addchannel")])
      buttons.append([InlineKeyboardButton('🔙 Back', 
                       callback_data="settings#main")])
      await query.message.edit_text( 
-       "<b><u>My Channels</u></b>\n\nYou Can Manage Your Target Chats In Here",
+       "<b><u>My Target Chats</u></b>\n\nYou Can Manage Your Target Channels & Groups In Here",
        reply_markup=InlineKeyboardMarkup(buttons))
    
   elif type=="addchannel":  
      await query.message.delete()
      try:
-         text = await bot.send_message(user_id, "<b><u>Set Target Chat</u></b>\n\nForward A Message From Your Target Chat\n/cancel - To Cancel This Process")
+         text = await bot.send_message(user_id, "<b><u>Set Target Chat</u></b>\n\nForward A Message From Your Target Chat / Group.\nIf you want to target a Group Topic, send the message link of that Topic.\n/cancel - To Cancel This Process")
          chat_ids = await bot.listen(chat_id=user_id, timeout=300)
          if chat_ids.text=="/cancel":
             await chat_ids.delete()
             return await text.edit_text(
                   "Process Canceled",
                   reply_markup=InlineKeyboardMarkup(buttons))
-         elif not chat_ids.forward_date:
-            await chat_ids.delete()
-            return await text.edit_text("This Is Not A Forward Message")
-         else:
+         
+         topic_id = None
+         if getattr(chat_ids, 'forward_date', None) and chat_ids.forward_from_chat:
             chat_id = chat_ids.forward_from_chat.id
             title = chat_ids.forward_from_chat.title
             username = chat_ids.forward_from_chat.username
             username = "@" + username if username else "private"
-         chat = await db.add_channel(user_id, chat_id, title, username)
+         elif chat_ids.text:
+            import re
+            regex = re.compile(r"(https://)?(t\.me/|telegram\.me/|telegram\.dog/)(c/)?(\d+|[a-zA-Z_0-9]+)/(\d+)(/(\d+))?$")
+            match = regex.match(chat_ids.text.replace("?single", ""))
+            if not match:
+                await chat_ids.delete()
+                return await text.edit_text("This Is Not A Valid Forward Message or Link")
+            
+            chat_id_str = match.group(4)
+            if match.group(7):
+                topic_id = int(match.group(5))
+            else:
+                topic_id = None
+                
+            if chat_id_str.isnumeric():
+                chat_id = int("-100" + chat_id_str)
+            else:
+                chat_id = chat_id_str
+                
+            try:
+                chat_info = await bot.get_chat(chat_id)
+                title = chat_info.title
+                username = "@" + chat_info.username if chat_info.username else "private"
+            except Exception:
+                await chat_ids.delete()
+                return await text.edit_text("Bot must be in the target chat to add it via link!", reply_markup=InlineKeyboardMarkup(buttons))
+         else:
+            await chat_ids.delete()
+            return await text.edit_text("This Is Not A Valid Forward Message or Link")
+            
+         chat = await db.add_channel(user_id, chat_id, title, username, topic_id=topic_id)
          await chat_ids.delete()
          await text.edit_text(
-            "Successfully Updated" if chat else "This Channel Already Added",
+            "Successfully Updated" if chat else "This Chat is Already Added",
             reply_markup=InlineKeyboardMarkup(buttons))
      except asyncio.exceptions.TimeoutError:
          await text.edit_text('Process Has Been Automatically Cancelled', reply_markup=InlineKeyboardMarkup(buttons))
   
   elif type=="editbot": 
-     bot = await db.get_bot(user_id)
-     TEXT = Translation.BOT_DETAILS if bot['is_bot'] else Translation.USER_DETAILS
+     bot_data = await db.get_bot(user_id)
+     TEXT = Translation.BOT_DETAILS if bot_data['is_bot'] else Translation.USER_DETAILS
      buttons = [[InlineKeyboardButton('❌ Remove ❌', callback_data=f"settings#removebot")
                ],
                [InlineKeyboardButton('🔙 Back', callback_data="settings#bots")]]
      await query.message.edit_text(
-        TEXT.format(bot['name'], bot['id'], bot['username']),
+        TEXT.format(bot_data['name'], bot_data['id'], bot_data['username']),
         reply_markup=InlineKeyboardMarkup(buttons))
                                              
   elif type=="removebot":
@@ -132,18 +165,23 @@ async def settings_query(bot, query):
         reply_markup=InlineKeyboardMarkup(buttons))
                                              
   elif type.startswith("editchannels"): 
-     chat_id = type.split('_')[1]
-     chat = await db.get_channel_details(user_id, chat_id)
-     buttons = [[InlineKeyboardButton('❌ Remove ❌', callback_data=f"settings#removechannel_{chat_id}")
-               ],
+     parts = type.split('_')
+     chat_id = parts[1]
+     topic_id = int(parts[2]) if len(parts) > 2 else None
+     chat = await db.get_channel_details(user_id, chat_id, topic_id)
+     
+     topic_suffix = f"_{topic_id}" if topic_id else ""
+     buttons = [[InlineKeyboardButton('❌ Remove ❌', callback_data=f"settings#removechannel_{chat_id}{topic_suffix}")],
                [InlineKeyboardButton('🔙 Back', callback_data="settings#channels")]]
      await query.message.edit_text(
-        f"<b><u>📄 Channel Details</b></u>\n\n<b>Title :</b> <code>{chat['title']}</code>\n<b>Channel ID :</b> <code>{chat['chat_id']}</code>\n<b>Username :</b> {chat['username']}",
+        f"<b><u>📄 Chat Details</b></u>\n\n<b>Title :</b> <code>{chat['title']}</code>\n<b>ID :</b> <code>{chat['chat_id']}</code>\n<b>Topic :</b> {chat.get('topic_id', 'None')}\n<b>Username :</b> {chat['username']}",
         reply_markup=InlineKeyboardMarkup(buttons))
                                              
   elif type.startswith("removechannel"):
-     chat_id = type.split('_')[1]
-     await db.remove_channel(user_id, chat_id)
+     parts = type.split('_')
+     chat_id = parts[1]
+     topic_id = int(parts[2]) if len(parts) > 2 else None
+     await db.remove_channel(user_id, chat_id, topic_id)
      await query.message.edit_text(
         "Successfully Updated",
         reply_markup=InlineKeyboardMarkup(buttons))
