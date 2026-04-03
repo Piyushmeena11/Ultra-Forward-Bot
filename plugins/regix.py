@@ -236,7 +236,7 @@ async def edit(msg, title, status, sts):
    estimated_total_time = TimeFormatter(milliseconds=estimated_total_time)
    estimated_total_time = estimated_total_time if estimated_total_time != '' else '0 s'
 
-   text = TEXT.format(i.fetched, i.total_files, i.duplicate, i.deleted, i.skip, status, percentage, estimated_total_time, progress)
+   text = TEXT.format(i.fetched, i.total_files, i.duplicate, i.deleted, i.skip, i.filtered, status, percentage, estimated_total_time, progress)
    if status in ["cancelled", "completed"]:
       button.append(
          [InlineKeyboardButton('📢 Updates', url='https://t.me/Madflix_Bots'),
