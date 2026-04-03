@@ -53,7 +53,7 @@ async def pub_(bot, message):
     try:
       client = await start_clone_bot(CLIENT.client(_bot))
     except Exception as e:  
-      return await m.edit(e)
+      return await m.edit(str(e))
     await msg_edit(m, "Processing...")
     try: 
        await client.get_messages(sts.get("FROM"), sts.get("limit"))
@@ -61,7 +61,7 @@ async def pub_(bot, message):
        await msg_edit(m, f"Source Chat May Be A Private Channel / Group. Use Userbot (User Must Be Member Over There) Or  If Make Your [Bot](t.me/{_bot['username']}) An Admin Over There", retry_btn(frwd_id), True)
        return await stop(client, user)
     try:
-       k = await client.send_message(i.TO, "Testing")
+       k = await client.send_message(i.TO, "Testing", reply_to_message_id=sts.get('to_topic'))
        await k.delete()
     except:
        await msg_edit(m, f"Please Make Your [UserBot / Bot](t.me/{_bot['username']}) Admin In Target Channel With Full Permissions", retry_btn(frwd_id), True)
@@ -125,9 +125,11 @@ async def pub_(bot, message):
                    await asyncio.sleep(sleep) 
         except Exception as e:
             await msg_edit(m, f'<b>Error :</b>\n<code>{e}</code>', wait=True)
-            temp.IS_FRWD_CHAT.remove(sts.TO)
+            if i.TO in temp.IS_FRWD_CHAT:
+                temp.IS_FRWD_CHAT.remove(i.TO)
             return await stop(client, user)
-        temp.IS_FRWD_CHAT.remove(sts.TO)
+        if i.TO in temp.IS_FRWD_CHAT:
+            temp.IS_FRWD_CHAT.remove(i.TO)
         await send(client, user, "🎉 Forwarding Completed")
         await edit(m, 'Completed', "completed", sts) 
         await stop(client, user)
@@ -237,7 +239,8 @@ async def edit(msg, title, status, sts):
    
 async def is_cancelled(client, user, msg, sts):
    if temp.CANCEL.get(user)==True:
-      temp.IS_FRWD_CHAT.remove(sts.TO)
+      if sts.get("TO") in temp.IS_FRWD_CHAT:
+          temp.IS_FRWD_CHAT.remove(sts.get("TO"))
       await edit(msg, "Cancelled", "completed", sts)
       await send(client, user, "❌ Forwarding Process Cancelled")
       await stop(client, user)
