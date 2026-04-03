@@ -211,7 +211,7 @@ async def update_configs(user_id, key, value):
       'caption', 'header', 'footer', 'prefix', 'suffix',
       'delete_before', 'delete_after', 'delete_words', 'replace_words',
       'link_remove', 'link_replace', 'remove_username', 'username_replace',
-      'caption_length', 'caption_enabled', 'duplicate', 'db_uri',
+      'caption_length', 'caption_enabled', 'pin_message', 'duplicate', 'db_uri',
       'forward_tag', 'protect', 'file_size', 'size_limit', 'extension',
       'keywords', 'button'
   ]
