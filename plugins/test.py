@@ -73,22 +73,18 @@ async def start_clone_bot(FwdBot, data=None):
                 if len(batch) < 200:
                     return
         else:
-            # BOT MODE: bots can use search_messages (messages.Search) unlike GetHistory
-            # This returns only real existing messages, no empty ghosts
-            skipped = 0
-            offset_id = limit + 1
+            # BOT MODE: use get_messages with specific ID ranges
+            # Peer is pre-resolved via get_chat() in regix.py before this is called
+            # Empty/non-existent IDs are handled by message.empty check in regix.py
+            current = max(1, offset + 1)
             while True:
-                batch = await self.search_messages(chat_id, offset_id=offset_id, limit=200)
-                if not batch:
+                new_diff = min(200, limit - current + 1)
+                if new_diff <= 0:
                     return
-                for message in batch:
-                    offset_id = message.id
-                    if skipped < offset:
-                        skipped += 1
-                        continue
+                messages = await self.get_messages(chat_id, list(range(current, current + new_diff)))
+                for message in messages:
                     yield message
-                if len(batch) < 200:
-                    return
+                current += new_diff
 
    FwdBot.iter_messages = iter_messages
    return FwdBot
