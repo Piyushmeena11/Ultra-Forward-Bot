@@ -46,14 +46,22 @@ async def pub_(bot, message):
     i = sts.get(full=True)
     if i.TO in temp.IS_FRWD_CHAT:
       return await message.answer("In Target Chat A Task Is Progressing. Please Wait Until Task Complete", show_alert=True)
-    m = await msg_edit(message.message, "Verifying Your Data's, Please Wait.")
-    _bot, caption, forward_tag, data, protect, button = await sts.get_data(user)
+    m = await msg_edit(message.message, "Verifying Your Data's, Please Wait. [Step 1: DB]")
+    try:
+        _bot, caption, forward_tag, data, protect, button = await sts.get_data(user)
+    except Exception as e:
+        return await m.edit(f"Data Fetch Error: {e}")
+        
+    m = await msg_edit(m, "Verifying Your Data's, Please Wait. [Step 2: Bot check]")
     if not _bot:
       return await msg_edit(m, "You Didn't Added Any Bot. Please Add A Bot Using /settings !", wait=True)
+      
+    m = await msg_edit(m, "Verifying Your Data's, Please Wait. [Step 3: Clone Startup]")
     try:
       client = await start_clone_bot(CLIENT.client(_bot))
     except Exception as e:  
-      return await m.edit(str(e))
+      return await m.edit(f"Startup Error: {e} | Type: {type(e)}")
+      
     await msg_edit(m, "Processing...")
     try: 
        await client.get_messages(sts.get("FROM"), sts.get("limit"))
@@ -203,7 +211,7 @@ async def msg_edit(msg, text, button=None, wait=None):
     try:
         return await msg.edit(text, reply_markup=button)
     except MessageNotModified:
-        pass 
+        return msg 
     except FloodWait as e:
         if wait:
            await asyncio.sleep(e.value)
