@@ -100,10 +100,6 @@ async def pub_(bot, message):
                    await edit(m, 'Progressing', 10, sts)
                 pling += 1
                 
-                from_topic = sts.get('from_topic')
-                if from_topic and getattr(message, 'message_thread_id', getattr(message, 'reply_to_message_id', None)) != from_topic:
-                    continue
-                
                 sts.add('fetched')
                 if message == "DUPLICATE":
                    sts.add('duplicate')
@@ -114,6 +110,11 @@ async def pub_(bot, message):
                 if message.empty or message.service:
                    sts.add('deleted')
                    continue
+
+                from_topic = sts.get('from_topic')
+                if from_topic and getattr(message, 'message_thread_id', getattr(message, 'reply_to_message_id', None)) != from_topic:
+                    sts.add('filtered')
+                    continue
                 if forward_tag:
                    MSG.append(message.id)
                    notcompleted = len(MSG)
