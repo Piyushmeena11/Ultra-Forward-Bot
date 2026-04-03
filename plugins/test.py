@@ -67,12 +67,12 @@ async def start_clone_bot(FwdBot, data=None):
                 for message in app.iter_messages("pyrogram", 1, 15000):
                     print(message.text)
         """
-        current = offset
+        current = max(1, offset)
         while True:
-            new_diff = min(200, limit - current)
+            new_diff = min(200, limit - current + 1)
             if new_diff <= 0:
                 return
-            messages = await self.get_messages(chat_id, list(range(current, current+new_diff+1)))
+            messages = await self.get_messages(chat_id, list(range(current, current+new_diff)))
             for message in messages:
                 yield message
                 current += 1
@@ -89,9 +89,9 @@ class CLIENT:
     
   def client(self, data, user=None):
      if user == None and data.get('is_bot') == False:
-        return Client("USERBOT", self.api_id, self.api_hash, session_string=data.get('session'))
+        return Client("USERBOT", self.api_id, self.api_hash, session_string=data.get('session'), in_memory=True)
      elif user == True:
-        return Client("USERBOT", self.api_id, self.api_hash, session_string=data)
+        return Client("USERBOT", self.api_id, self.api_hash, session_string=data, in_memory=True)
      elif user != False:
         data = data.get('token')
      return Client("BOT", self.api_id, self.api_hash, bot_token=data, in_memory=True)
