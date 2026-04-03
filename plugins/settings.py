@@ -204,9 +204,22 @@ async def settings_query(bot, query):
                  await input_msg.delete()
                  return await text_msg.edit_text("Length must be a positive digit.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
              
-             await update_configs(user_id, type if type != "renew_caption" else "caption", val)
+             db_key = type if type != "renew_caption" else "caption"
+             
+             if type in ["delete_words", "replace_words"]:
+                 existing = data.get(db_key)
+                 if existing:
+                     val = f"{existing}, {val}"
+             
+             await update_configs(user_id, db_key, val)
              await input_msg.delete()
-             await text_msg.edit_text("〰️ SUCCESSFULLY UPDATED", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('❌ REMOVE', callback_data=f'settings#rem_{type}'), InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
+             
+             display_val = val
+             if type in ['delete_words', 'replace_words']:
+                 display_val = str([w.strip() for w in val.split(',')])
+             
+             success_text = f"〰️ SUCCESSFULLY UPDATED\n〰️ MY UPDATED {type.replace('_', ' ').upper()} :\n\n<code>{display_val}</code>"
+             await text_msg.edit_text(success_text, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton('❌ REMOVE', callback_data=f'settings#rem_{type}'), InlineKeyboardButton('« BACK', callback_data='settings#caption')]]))
 
      except asyncio.exceptions.TimeoutError:
          if 'text_msg' in locals():
