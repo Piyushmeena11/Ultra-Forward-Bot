@@ -259,7 +259,8 @@ def custom_caption(msg, configs):
           file_name = getattr(media, 'file_name', '')
           file_size = get_size(getattr(media, 'file_size', 0))
       
-      fcaption = configs['caption'].format(
+      renew = configs['caption'].replace('{{line_space}}', '\n')
+      fcaption = renew.format(
         filename=file_name,
         size=file_size,
         caption=fcaption,
@@ -272,11 +273,11 @@ def custom_caption(msg, configs):
   # 1. Strip Before/After
   if configs.get('delete_before'):
     if fcaption.startswith(configs['delete_before']):
-      fcaption = fcaption[len(configs['delete_before']):]
+      fcaption = fcaption[len(configs['delete_before']):].lstrip()
   
   if configs.get('delete_after'):
     if fcaption.endswith(configs['delete_after']):
-      fcaption = fcaption[:-len(configs['delete_after'])]
+      fcaption = fcaption[:-len(configs['delete_after'])].rstrip()
 
   # 2. Delete Words
   if configs.get('delete_words'):
@@ -294,19 +295,23 @@ def custom_caption(msg, configs):
 
   # 4. Username Remove/Replace
   if configs.get('remove_username'):
-    username_regex = r"@[a-zA-Z0-9_]+"
-    replacement = configs.get('username_replace') or ""
-    fcaption = re.sub(username_regex, replacement, fcaption)
+    fcaption = re.sub(r'(?<=^|(?<=[^a-zA-Z0-9-_\.]))@([A-Za-z0-9_]+)', '', fcaption)
   elif configs.get('username_replace'):
-    # If not removing all, maybe user wants a specific swap? 
-    # Usually 'remove_username' is the toggle. Logic above covers general case.
-    pass
+    replacement = configs.get('username_replace')
+    fcaption = re.sub(r'(?<=^|(?<=[^a-zA-Z0-9-_\.]))@([A-Za-z0-9_]+)', replacement, fcaption)
 
   # 5. Link Remove/Replace
   if configs.get('link_remove'):
-    link_regex = r"https?://\S+"
-    replacement = configs.get('link_replace') or ""
-    fcaption = re.sub(link_regex, replacement, fcaption)
+    # Remove raw links
+    fcaption = re.sub(r'https?://[^\s<]+', '', fcaption)
+    # Strip hyperlink tags, keeping the inner text
+    fcaption = re.sub(r'<a[^>]*href="[^"]*"[^>]*>(.*?)</a>', r'\1', fcaption)
+  elif configs.get('link_replace'):
+    replacement = configs.get('link_replace')
+    # Replace raw links
+    fcaption = re.sub(r'https?://[^\s<]+', replacement, fcaption)
+    # Replace hyperlink urls, keeping the text
+    fcaption = re.sub(r'(<a[^>]*href=")[^"]*("[^>]*>.*?</a>)', rf'\1{replacement}\2', fcaption)
 
   # 6. Apply Prefix/Suffix
   if configs.get('prefix'):
