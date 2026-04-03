@@ -134,8 +134,8 @@ async def settings_query(bot, query):
                 title = chat_info.title
                 username = "@" + chat_info.username if chat_info.username else "private"
             except Exception:
-                await chat_ids.delete()
-                return await text.edit_text("Bot must be in the target chat to add it via link!", reply_markup=InlineKeyboardMarkup(buttons))
+                title = "private"
+                username = "private"
          else:
             await chat_ids.delete()
             return await text.edit_text("This Is Not A Valid Forward Message or Link")
