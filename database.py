@@ -108,6 +108,7 @@ class Database:
             'username_replace': None,
             'caption_length': None,
             'caption_enabled': True,
+            'pin_message': False,
             'duplicate': True,
             'forward_tag': False,
             'file_size': 0,
